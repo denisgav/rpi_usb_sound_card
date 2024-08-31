@@ -6,7 +6,7 @@
 #if defined(__RX__)
   const uint32_t sample_rates[] = {44100, 48000};
 #else
-  const uint32_t sample_rates[] = {44100, 48000, 88200, 96000};
+  const uint32_t sample_rates[] = {44100, 48000};
 #endif
 
 

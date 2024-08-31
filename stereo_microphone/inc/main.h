@@ -5,6 +5,8 @@
 #include "i2c_board_defines.h"
 #include "board_defines.h"
 
+#include "microphone_settings.h"
+
 typedef int32_t usb_audio_4b_sample;
 typedef int16_t usb_audio_2b_sample;
 

@@ -20,13 +20,16 @@ audio_control_range_4_n_t(1) sampleFreqRng;             // Sample frequency rang
 //----------------------------------------
 // Functions declared in the header:
 //----------------------------------------
-static usb_microphone_tx_pre_load_cb_t usb_microphone_tx_pre_load_handler = NULL;
-static usb_microphone_tx_post_load_cb_t usb_microphone_tx_post_load_handler = NULL;
-
 void usb_microphone_init()
 {
+  board_init();
+
 	// init device stack on configured roothub port
   tud_init(BOARD_TUD_RHPORT);
+
+  if (board_init_after_tusb) {
+    board_init_after_tusb();
+  }
 
   // Init values
   sampFreq = AUDIO_SAMPLE_RATE;
@@ -44,13 +47,38 @@ void usb_microphone_init()
   }
 }
 
-void usb_microphone_set_tx_pre_load_handler(usb_microphone_tx_pre_load_cb_t handler)
-{
+static usb_microphone_mute_set_cb_t usb_microphone_mute_set_handler = NULL;
+static usb_microphone_volume_set_cb_t usb_microphone_volume_set_handler = NULL;
+static usb_microphone_current_sample_rate_set_cb_t usb_microphone_current_sample_rate_set_handler = NULL;
+static usb_microphone_current_resolution_set_cb_t usb_microphone_current_resolution_set_handler = NULL;
+static usb_microphone_current_status_set_cb_t usb_microphone_current_status_set_handler = NULL;
+static usb_microphone_tx_pre_load_cb_t usb_microphone_tx_pre_load_handler = NULL;
+static usb_microphone_tx_post_load_cb_t usb_microphone_tx_post_load_handler = NULL;
+
+void usb_microphone_set_mute_set_handler(usb_microphone_mute_set_cb_t handler){
+  usb_microphone_mute_set_handler = handler;
+}
+void usb_microphone_set_volume_set_handler(usb_microphone_volume_set_cb_t handler){
+  usb_microphone_volume_set_handler = handler;
+}
+
+void usb_microphone_set_current_sample_rate_set_handler(usb_microphone_current_sample_rate_set_cb_t handler){
+  usb_microphone_current_sample_rate_set_handler = handler;
+}
+
+void usb_microphone_set_current_resolution_set_handler(usb_microphone_current_resolution_set_cb_t handler){
+  usb_microphone_current_resolution_set_handler = handler;
+}
+
+void usb_microphone_set_current_status_set_handler(usb_microphone_current_status_set_cb_t handler){
+  usb_microphone_current_status_set_handler = handler;
+}
+
+void usb_microphone_set_tx_pre_load_handler(usb_microphone_tx_pre_load_cb_t handler){
 	usb_microphone_tx_pre_load_handler = handler;
 }
 
-void usb_microphone_set_tx_post_load_handler(usb_microphone_tx_post_load_cb_t handler)
-{
+void usb_microphone_set_tx_post_load_handler(usb_microphone_tx_post_load_cb_t handler){
 	usb_microphone_tx_post_load_handler = handler;
 }
 
@@ -73,13 +101,17 @@ void usb_microphone_task()
 // Invoked when device is mounted
 void tud_mount_cb(void)
 {
-  //blink_interval_ms = BLINK_MOUNTED;
+  if(usb_microphone_current_status_set_handler){
+    usb_microphone_current_status_set_handler(BLINK_MOUNTED);
+  }
 }
 
 // Invoked when device is unmounted
 void tud_umount_cb(void)
 {
-  //blink_interval_ms = BLINK_NOT_MOUNTED;
+  if(usb_microphone_current_status_set_handler){
+    usb_microphone_current_status_set_handler(BLINK_NOT_MOUNTED);
+  }
 }
 
 // Invoked when usb bus is suspended
@@ -87,14 +119,18 @@ void tud_umount_cb(void)
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
 void tud_suspend_cb(bool remote_wakeup_en)
 {
-  (void) remote_wakeup_en;
-  //blink_interval_ms = BLINK_SUSPENDED;
+  (void)remote_wakeup_en;
+  if(usb_microphone_current_status_set_handler){
+    usb_microphone_current_status_set_handler(BLINK_SUSPENDED);
+  }
 }
 
 // Invoked when usb bus is resumed
 void tud_resume_cb(void)
 {
-  //blink_interval_ms = tud_mounted() ? BLINK_MOUNTED : BLINK_NOT_MOUNTED;
+  if(usb_microphone_current_status_set_handler){
+    usb_microphone_current_status_set_handler(tud_mounted() ? BLINK_MOUNTED : BLINK_NOT_MOUNTED);
+  }
 }
 
 //--------------------------------------------------------------------+
@@ -166,6 +202,11 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
 
         mute[channelNum] = ((audio_control_cur_1_t*) pBuff)->bCur;
 
+        if(usb_microphone_mute_set_handler)
+        {
+          usb_microphone_mute_set_handler(channelNum, mute[channelNum]);
+        }
+
         TU_LOG2("    Set Mute: %d of channel: %u\r\n", mute[channelNum], channelNum);
       return true;
 
@@ -174,6 +215,11 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_2_t));
 
         volume[channelNum] = (uint16_t) ((audio_control_cur_2_t*) pBuff)->bCur;
+
+        if(usb_microphone_volume_set_handler)
+        {
+          usb_microphone_volume_set_handler(channelNum, volume[channelNum]);
+        }
 
         TU_LOG2("    Set Volume: %d dB of channel: %u\r\n", volume[channelNum], channelNum);
       return true;

@@ -1,5 +1,5 @@
-#ifndef usb_speaker__H
-#define usb_speaker__H
+#ifndef _USB_SPEAKER__H
+#define _USB_SPEAKER__H
 
 #include <stdio.h>
 #include <string.h>
@@ -51,4 +51,4 @@ void usb_speaker_set_current_status_set_handler(usb_speaker_current_status_set_c
 
 void usb_speaker_set_tud_audio_rx_done_pre_read_set_handler(usb_speaker_tud_audio_rx_done_pre_read_cb_t handler);
 
-#endif //usb_speaker__H
+#endif //_USB_SPEAKER__H
