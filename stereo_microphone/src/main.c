@@ -149,10 +149,10 @@ void on_usb_microphone_tx_pre_load(uint8_t rhport, uint8_t itf, uint8_t ep_in, u
   // Write I2S buffer into FIFO
   for (uint8_t cnt=0; cnt < 2; cnt++)
   {
-    tud_audio_write_support_ff(cnt, i2s_dummy_buffer[cnt], AUDIO_SAMPLE_RATE/1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_CHANNEL_PER_FIFO_TX);
+    tud_audio_write_support_ff(cnt, i2s_dummy_buffer[cnt], CFG_TUD_AUDIO_FUNC_1_SAMPLE_RATE/1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_CHANNEL_PER_FIFO_TX);
   }
 #else
-  tud_audio_write(i2s_dummy_buffer, AUDIO_SAMPLE_RATE/1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX);
+  tud_audio_write(i2s_dummy_buffer, CFG_TUD_AUDIO_FUNC_1_SAMPLE_RATE/1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX);
 #endif
 }
 
@@ -169,13 +169,16 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
         #if CFG_TUD_AUDIO_ENABLE_ENCODING
           i2s_dummy_buffer[0][i*2] = mic_i2s_to_usb_sample_convert(0, i, (buffer[i].left)); // TODO: check this value
           i2s_dummy_buffer[0][i*2+1] = mic_i2s_to_usb_sample_convert(1, i, (buffer[i].right)); // TODO: check this value
-          i2s_dummy_buffer[1][i*2] = 0; // TODO: check this value
-          i2s_dummy_buffer[1][i*2+1] = 0; // TODO: check this value
+          //i2s_dummy_buffer[1][i*2] = 0; // TODO: check this value
+          //i2s_dummy_buffer[1][i*2+1] = 0; // TODO: check this value
         #else
-          i2s_dummy_buffer[i*4] = mic_i2s_to_usb_sample_convert(0, i, (buffer[i].left)); // TODO: check this value
-          i2s_dummy_buffer[i*4+1] = mic_i2s_to_usb_sample_convert(1, i, (buffer[i].right)); // TODO: check this value
-          i2s_dummy_buffer[i*4+2] = 0; // TODO: check this value
-          i2s_dummy_buffer[i*4+3] = 0; // TODO: check this value
+          i2s_dummy_buffer[i*2] = mic_i2s_to_usb_sample_convert(0, i, (buffer[i].left)); // TODO: check this value
+          i2s_dummy_buffer[i*2+1] = mic_i2s_to_usb_sample_convert(1, i, (buffer[i].right)); // TODO: check this value
+
+          //i2s_dummy_buffer[i*4] = mic_i2s_to_usb_sample_convert(0, i, (buffer[i].left)); // TODO: check this value
+          //i2s_dummy_buffer[i*4+1] = mic_i2s_to_usb_sample_convert(1, i, (buffer[i].right)); // TODO: check this value
+          //i2s_dummy_buffer[i*4+2] = 0; // TODO: check this value
+          //i2s_dummy_buffer[i*4+3] = 0; // TODO: check this value
         #endif
       }
     }

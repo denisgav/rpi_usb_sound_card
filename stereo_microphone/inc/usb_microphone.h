@@ -24,8 +24,6 @@ enum
   BLINK_SUSPENDED = 2500,
 };
 
-#define AUDIO_SAMPLE_RATE   CFG_TUD_AUDIO_FUNC_1_SAMPLE_RATE
-
 void usb_microphone_init();
 void usb_microphone_task();
 

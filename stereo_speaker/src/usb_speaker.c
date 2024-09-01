@@ -9,10 +9,13 @@
   const uint32_t sample_rates[] = {44100, 48000};
 #endif
 
-
 uint32_t current_sample_rate  = 48000;
 
 #define N_SAMPLE_RATES  TU_ARRAY_SIZE(sample_rates)
+
+//----------------------------------------
+// local variables:
+//----------------------------------------
 
 // Audio controls
 // Current states
@@ -25,8 +28,9 @@ const uint8_t resolutions_per_format[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] = {CFG_TUD_
 // Current resolution, update on format change
 uint8_t current_resolution = CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX;
 
-void audio_task(void);
-
+//----------------------------------------
+// Functions declared in the header:
+//----------------------------------------
 void usb_speaker_init()
 {
 	board_init();
@@ -44,12 +48,6 @@ void usb_speaker_init()
   }
 
   TU_LOG1("Headset running\r\n");
-}
-
-void usb_speaker_task()
-{
-	tud_task(); // TinyUSB device task
-  audio_task();
 }
 
 static usb_speaker_mute_set_cb_t usb_speaker_mute_set_handler = NULL;
@@ -82,6 +80,13 @@ void usb_speaker_set_tud_audio_rx_done_pre_read_set_handler(usb_speaker_tud_audi
 	usb_speaker_tud_audio_rx_done_pre_read_handler = handler;
 }
 
+void usb_speaker_task()
+{
+  tud_task(); // TinyUSB device task
+}
+
+//----------------------------------------
+//----------------------------------------
 
 //--------------------------------------------------------------------+
 // Device callbacks
@@ -413,11 +418,3 @@ bool tud_audio_rx_done_pre_read_cb(uint8_t rhport, uint16_t n_bytes_received, ui
 //   (void) buffer;
 //   (void) bufsize;
 // }
-
-//--------------------------------------------------------------------+
-// AUDIO Task
-//--------------------------------------------------------------------+
-
-void audio_task(void)
-{
-}

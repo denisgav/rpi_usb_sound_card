@@ -32,12 +32,12 @@ void usb_microphone_init()
   }
 
   // Init values
-  sampFreq = AUDIO_SAMPLE_RATE;
+  sampFreq = CFG_TUD_AUDIO_FUNC_1_SAMPLE_RATE;
   clkValid = 1;
 
   sampleFreqRng.wNumSubRanges = 1;
-  sampleFreqRng.subrange[0].bMin = AUDIO_SAMPLE_RATE;
-  sampleFreqRng.subrange[0].bMax = AUDIO_SAMPLE_RATE;
+  sampleFreqRng.subrange[0].bMin = CFG_TUD_AUDIO_FUNC_1_SAMPLE_RATE;
+  sampleFreqRng.subrange[0].bMax = CFG_TUD_AUDIO_FUNC_1_SAMPLE_RATE;
   sampleFreqRng.subrange[0].bRes = 0;
 
   for(int i=0; i<(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1); i++)

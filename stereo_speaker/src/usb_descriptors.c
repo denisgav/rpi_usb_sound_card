@@ -118,9 +118,6 @@ uint8_t const desc_configuration[] =
 
     // string index, EP Out & FB address
     TUD_AUDIO_SPEAKER_STEREO_FB_DESCRIPTOR(2, EPNUM_AUDIO_OUT, EPNUM_AUDIO_FB | 0x80, 4)
-    
-    // Interface number, string index, byte per sample, bit per sample, EP Out, EP size, EP feedback
-    //TUD_AUDIO_SPEAKER_STEREO_FB_DESCRIPTOR(0, 4, CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX, CFG_TUD_AUDIO_FUNC_1_RESOLUTION_RX, EPNUM_AUDIO_OUT, CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_MAX, EPNUM_AUDIO_FB | 0x80)
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
