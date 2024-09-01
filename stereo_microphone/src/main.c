@@ -42,7 +42,8 @@ microphone_settings_t microphone_settings;
 
 
 // Audio test data, 2 channels muxed together, buffer[0] for CH0, buffer[1] for CH1
-usb_audio_4b_sample i2s_dummy_buffer[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX*CFG_TUD_AUDIO_FUNC_1_SAMPLE_RATE/1000];
+usb_audio_4b_sample i2s_24b_dummy_buffer[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX*CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE/1000];
+usb_audio_2b_sample i2s_16b_dummy_buffer[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX*CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE/1000];
 
 //-------------------------
 // callback functions
@@ -59,8 +60,6 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
 
 void led_blinking_task(void);
 
-usb_audio_4b_sample mic_i2s_to_usb_sample_convert(uint32_t ch_id, uint32_t sample_idx, uint32_t sample);
-
 void refresh_i2s_connections()
 {
   microphone_settings.samples_in_i2s_frame_min = (microphone_settings.sample_rate)    /1000;
@@ -75,7 +74,7 @@ void refresh_i2s_connections()
 int main(void)
 {
   microphone_settings.sample_rate  = I2S_MIC_RATE_DEF;
-  microphone_settings.resolution = CFG_TUD_AUDIO_FUNC_1_RESOLUTION_TX; //CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_TX;
+  microphone_settings.resolution = CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX;
   microphone_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
 
   usb_microphone_set_mute_set_handler(usb_microphone_mute_handler);
@@ -140,7 +139,14 @@ void usb_microphone_current_status_set_handler(uint32_t blink_interval_ms_in)
 }
 void on_usb_microphone_tx_pre_load(uint8_t rhport, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting)
 {
-  tud_audio_write(i2s_dummy_buffer, CFG_TUD_AUDIO_FUNC_1_SAMPLE_RATE/1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX);
+  if(microphone_settings.resolution == 24){
+    uint32_t buffer_size = microphone_settings.samples_in_i2s_frame_min * CFG_TUD_AUDIO_FUNC_1_FORMAT_2_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX;
+    tud_audio_write(i2s_24b_dummy_buffer, buffer_size);
+  } else {
+    uint32_t buffer_size = microphone_settings.samples_in_i2s_frame_min * CFG_TUD_AUDIO_FUNC_1_FORMAT_1_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX;
+    tud_audio_write(i2s_16b_dummy_buffer, buffer_size);
+  }
+  
 }
 
 void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting)
@@ -148,23 +154,31 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
   i2s_32b_audio_sample buffer[USB_MIC_SAMPLE_BUFFER_SIZE];
   if(i2s0) {
     // Read data from microphone
-    int num_bytes_read = machine_i2s_read_stream(i2s0, (void*)&buffer[0], sizeof(buffer));
+    uint32_t buffer_size_read = microphone_settings.samples_in_i2s_frame_min * 4 * 2;
+    int num_bytes_read = machine_i2s_read_stream(i2s0, (void*)&buffer[0], buffer_size_read);
 
-    if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
-      int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
-      for(uint32_t i = 0; i < num_of_frames_read; i++){
-          i2s_dummy_buffer[i*2] = mic_i2s_to_usb_sample_convert(0, i, (buffer[i].left)); // TODO: check this value
-          i2s_dummy_buffer[i*2+1] = mic_i2s_to_usb_sample_convert(1, i, (buffer[i].right)); // TODO: check this value
+    if(microphone_settings.resolution == 24){
+      if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
+        int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
+        for(uint32_t i = 0; i < num_of_frames_read; i++){
+            i2s_24b_dummy_buffer[i] = buffer[i].left; // TODO: check this value
+            //i2s_24b_dummy_buffer[i*2] = buffer[i].left; // TODO: check this value
+            //i2s_24b_dummy_buffer[i*2+1] = buffer[i].right; // TODO: check this value
+        }
+      }
+    } else {
+      if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
+        int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
+        for(uint32_t i = 0; i < num_of_frames_read; i++){
+            i2s_16b_dummy_buffer[i] = buffer[i].left >> 8; // TODO: check this value
+            //i2s_16b_dummy_buffer[i*2] = buffer[i].left >> 8; // TODO: check this value
+            //i2s_16b_dummy_buffer[i*2+1] = buffer[i].right >> 8; // TODO: check this value
+        }
       }
     }
   }
 }
 
-usb_audio_4b_sample mic_i2s_to_usb_sample_convert(uint32_t ch_id, uint32_t sample_idx, uint32_t sample)
-{
-  int32_t sample_tmp = sample;
-  return sample_tmp; //<<4;
-}
 
 //--------------------------------------------------------------------+
 // BLINKING TASK

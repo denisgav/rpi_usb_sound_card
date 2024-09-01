@@ -21,7 +21,7 @@
 #endif //I2S_MIC_BPS
 
 #ifndef I2S_MIC_RATE_DEF
-    #define I2S_MIC_RATE_DEF (16000)
+    #define I2S_MIC_RATE_DEF (48000)
 #endif //I2S_MIC_RATE_DEF
 
 //-------------------------
