@@ -161,18 +161,18 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
       if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
         int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
         for(uint32_t i = 0; i < num_of_frames_read; i++){
-            i2s_24b_dummy_buffer[i] = buffer[i].left; // TODO: check this value
-            //i2s_24b_dummy_buffer[i*2] = buffer[i].left; // TODO: check this value
-            //i2s_24b_dummy_buffer[i*2+1] = buffer[i].right; // TODO: check this value
+            //i2s_24b_dummy_buffer[i] = buffer[i].left; // TODO: check this value
+            i2s_24b_dummy_buffer[i*2] = buffer[i].left; // TODO: check this value
+            i2s_24b_dummy_buffer[i*2+1] = buffer[i].right; // TODO: check this value
         }
       }
     } else {
       if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
         int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
         for(uint32_t i = 0; i < num_of_frames_read; i++){
-            i2s_16b_dummy_buffer[i] = buffer[i].left >> 8; // TODO: check this value
-            //i2s_16b_dummy_buffer[i*2] = buffer[i].left >> 8; // TODO: check this value
-            //i2s_16b_dummy_buffer[i*2+1] = buffer[i].right >> 8; // TODO: check this value
+            //i2s_16b_dummy_buffer[i] = (int16_t)((int32_t)buffer[i].left >> 8); // TODO: check this value
+            i2s_16b_dummy_buffer[i*2]   = (int16_t)((int32_t)buffer[i].left >> 8); // TODO: check this value
+            i2s_16b_dummy_buffer[i*2+1] = (int16_t)((int32_t)buffer[i].right >> 8); // TODO: check this value
         }
       }
     }
