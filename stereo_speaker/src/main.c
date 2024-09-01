@@ -31,8 +31,11 @@
 #include "usb_speaker.h"
 
 #include "main.h"
+
 #include "i2s/machine_i2s.h"
 #include "volume_ctrl.h"
+
+#include "ssd1306/ssd1306.h"
 
 // Pointer to I2S handler
 machine_i2s_obj_t* speaker_i2s0 = NULL;
@@ -71,12 +74,22 @@ void usb_speaker_current_status_set_handler(uint32_t blink_interval_ms_in);
 
 void usb_speaker_tud_audio_rx_done_pre_read_handler(uint8_t rhport, uint16_t n_bytes_received, uint8_t func_id, uint8_t ep_out, uint8_t cur_alt_setting);
 
+
+//---------------------------------------
+//           SSD1306
+//---------------------------------------
+ssd1306_t disp;
+void setup_ssd1306();
+//---------------------------------------
+
 /*------------- MAIN -------------*/
 int main(void)
 {
   speaker_settings.sample_rate  = I2S_SPK_RATE_DEF;
   speaker_settings.resolution = CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX;
   speaker_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
+
+  setup_ssd1306();
 
   usb_speaker_set_mute_set_handler(usb_speaker_mute_handler);
   usb_speaker_set_volume_set_handler(usb_speaker_volume_handler);
@@ -102,6 +115,27 @@ int main(void)
     led_blinking_task();
   }
 }
+
+//-------------------------
+// SSD1306 functions
+//-------------------------
+void setup_ssd1306(){
+  i2c_init(I2C_SSD1306_INST, 400000);
+  gpio_set_function(I2C_SSD1306_SDA, GPIO_FUNC_I2C);
+  gpio_set_function(I2C_SSD1306_SCL, GPIO_FUNC_I2C);
+  gpio_pull_up(I2C_SSD1306_SDA);
+  gpio_pull_up(I2C_SSD1306_SCL);
+
+  disp.external_vcc=false;
+  ssd1306_init(&disp, I2C_SSD1306_WIDTH, I2C_SSD1306_HEIGHT, I2C_SSD1306_ADDR, I2C_SSD1306_INST);
+  ssd1306_clear(&disp);
+
+  ssd1306_draw_string(&disp, 4, 16, 1, "Raspberry pi pico");
+  ssd1306_draw_string(&disp, 8, 32, 1, "USB UAC2 speaker");
+  ssd1306_show(&disp);
+}
+
+//-------------------------
 
 //-------------------------
 // callback functions

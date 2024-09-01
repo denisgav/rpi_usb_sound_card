@@ -1,7 +1,29 @@
-#ifndef I2S_BOARD_DEFINES__H
-#define I2S_BOARD_DEFINES__H
+#ifndef I2C_BOARD_DEFINES__H
+#define I2C_BOARD_DEFINES__H
+
+#ifndef I2C_SSD1306_SDA
+    #define I2C_SSD1306_SDA 2 
+#endif //I2C_SSD1306_SDA
+
+#ifndef I2C_SSD1306_SCL
+    #define I2C_SSD1306_SCL 3 
+#endif //I2C_SSD1306_SCL
+
+#ifndef I2C_SSD1306_INST
+    #define I2C_SSD1306_INST i2c1 
+#endif //I2C_SSD1306_INST
+
+#ifndef I2C_SSD1306_WIDTH
+    #define I2C_SSD1306_WIDTH 128 
+#endif //I2C_SSD1306_WIDTH
+
+#ifndef I2C_SSD1306_HEIGHT
+    #define I2C_SSD1306_HEIGHT 64
+#endif //I2C_SSD1306_HEIGHT
+
+#ifndef I2C_SSD1306_ADDR
+    #define I2C_SSD1306_ADDR 0x3c
+#endif //I2C_SSD1306_ADDR
 
 
-
-
-#endif //I2S_BOARD_DEFINES__H
+#endif //I2C_BOARD_DEFINES__H

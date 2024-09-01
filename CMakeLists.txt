@@ -52,5 +52,23 @@ pico_generate_pio_header(pico_i2S_audio ${CMAKE_CURRENT_LIST_DIR}/common/src/i2s
 target_link_libraries(pico_i2S_audio INTERFACE pico_stdlib hardware_dma hardware_pio)
 ###################################################
 
+###################################################
+# SSD1306 library
+###################################################
+
+add_library(pico_ssd1306 INTERFACE)
+
+target_sources(pico_ssd1306 INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}/common/src/ssd1306/ssd1306.c
+)
+
+target_include_directories(pico_ssd1306 INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}/common/inc
+)
+
+target_link_libraries(pico_ssd1306 INTERFACE pico_stdlib hardware_i2c)
+
+###################################################
+
 add_subdirectory("stereo_microphone")
 add_subdirectory("stereo_speaker")

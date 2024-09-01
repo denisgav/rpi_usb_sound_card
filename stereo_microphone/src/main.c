@@ -34,6 +34,8 @@
 #include "i2s/machine_i2s.h"
 #include "volume_ctrl.h"
 
+#include "ssd1306/ssd1306.h"
+
 
 // Pointer to I2S handler
 machine_i2s_obj_t* i2s0 = NULL;
@@ -70,12 +72,22 @@ void refresh_i2s_connections()
   // update_pio_frequency(speaker_i2s0, microphone_settings.usb_sample_rate);
 }
 
+
+//---------------------------------------
+//           SSD1306
+//---------------------------------------
+ssd1306_t disp;
+void setup_ssd1306();
+//---------------------------------------
+
 /*------------- MAIN -------------*/
 int main(void)
 {
   microphone_settings.sample_rate  = I2S_MIC_RATE_DEF;
   microphone_settings.resolution = CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX;
   microphone_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
+
+  setup_ssd1306();
 
   usb_microphone_set_mute_set_handler(usb_microphone_mute_handler);
   usb_microphone_set_volume_set_handler(usb_microphone_volume_handler);
@@ -103,6 +115,27 @@ int main(void)
     led_blinking_task();
   }
 }
+
+//-------------------------
+// SSD1306 functions
+//-------------------------
+void setup_ssd1306(){
+  i2c_init(I2C_SSD1306_INST, 400000);
+  gpio_set_function(I2C_SSD1306_SDA, GPIO_FUNC_I2C);
+  gpio_set_function(I2C_SSD1306_SCL, GPIO_FUNC_I2C);
+  gpio_pull_up(I2C_SSD1306_SDA);
+  gpio_pull_up(I2C_SSD1306_SCL);
+
+  disp.external_vcc=false;
+  ssd1306_init(&disp, I2C_SSD1306_WIDTH, I2C_SSD1306_HEIGHT, I2C_SSD1306_ADDR, I2C_SSD1306_INST);
+  ssd1306_clear(&disp);
+
+  ssd1306_draw_string(&disp, 4, 0, 1, "Raspberry pi pico");
+  ssd1306_draw_string(&disp, 4, 16, 1, "USB UAC2 microphone");
+  ssd1306_show(&disp);
+}
+
+//-------------------------
 
 
 //-------------------------
