@@ -75,7 +75,7 @@ void refresh_i2s_connections()
 int main(void)
 {
   microphone_settings.sample_rate  = I2S_MIC_RATE_DEF;
-  microphone_settings.resolution = 24; //CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_TX;
+  microphone_settings.resolution = CFG_TUD_AUDIO_FUNC_1_RESOLUTION_TX; //CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_TX;
   microphone_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
 
   usb_microphone_set_mute_set_handler(usb_microphone_mute_handler);
