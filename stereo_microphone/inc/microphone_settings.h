@@ -9,7 +9,7 @@
 // MACRO CONSTANT TYPEDEF PROTOTYPES
 //--------------------------------------------------------------------+
 typedef struct _microphone_settings_t {
-    // Audio controls
+  // Audio controls
   // Current states
   int8_t mute[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1];       // +1 for master channel 0
   int16_t volume[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1];    // +1 for master channel 0
@@ -21,6 +21,10 @@ typedef struct _microphone_settings_t {
 
   uint16_t samples_in_i2s_frame_min;
   uint16_t samples_in_i2s_frame_max;
+
+  bool user_mute;
+  bool status_updated;
+  uint32_t streaming_cntr;
 } microphone_settings_t;
 
 

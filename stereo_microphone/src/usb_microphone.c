@@ -31,8 +31,8 @@ static const uint8_t bytesPerSampleAltList[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] =
 };
 
 // Resolution per format
-const uint8_t resolutions_per_format[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] = {CFG_TUD_AUDIO_FUNC_1_FORMAT_1_N_BYTES_PER_SAMPLE_TX,
-                                                                        CFG_TUD_AUDIO_FUNC_1_FORMAT_2_N_BYTES_PER_SAMPLE_TX};
+const uint8_t resolutions_per_format[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] = {CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX,
+                                                                        CFG_TUD_AUDIO_FUNC_1_FORMAT_2_RESOLUTION_RX};
 
 audio_control_range_2_n_t(1) volumeRng[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX+1];       // Volume range state
 
@@ -382,8 +382,7 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
             TU_LOG2("    Get Volume range of channel: %u\r\n", channelNum);
 
             // Copy values - only for testing - better is version below
-            audio_control_range_2_n_t(1)
-            ret;
+            audio_control_range_2_n_t(1) ret;
 
             ret.wNumSubRanges = 1;
             ret.subrange[0].bMin = -90;    // -90 dB
