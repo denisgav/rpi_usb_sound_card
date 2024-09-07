@@ -113,13 +113,13 @@ typedef struct _machine_i2s_obj_t {
 } machine_i2s_obj_t;
 
 typedef struct  {
-    uint32_t left;
-    uint32_t right;
+    int32_t left;
+    int32_t right;
 } i2s_32b_audio_sample;
 
 typedef struct  {
-    uint16_t left;
-    uint16_t right;
+    int16_t left;
+    int16_t right;
 } i2s_16b_audio_sample;
 
 

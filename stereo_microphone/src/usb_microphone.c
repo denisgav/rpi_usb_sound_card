@@ -385,9 +385,9 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
             audio_control_range_2_n_t(1) ret;
 
             ret.wNumSubRanges = 1;
-            ret.subrange[0].bMin = -90;    // -90 dB
-            ret.subrange[0].bMax = 30;    // +30 dB
-            ret.subrange[0].bRes = 1;     // 1 dB steps
+            ret.subrange[0].bMin = MIN_VOLUME;    // -90 dB
+            ret.subrange[0].bMax = MAX_VOLUME;    // +90 dB
+            ret.subrange[0].bRes = VOLUME_RESOLUTION;     // 1 dB steps
 
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, (void*) &ret, sizeof(ret));
 

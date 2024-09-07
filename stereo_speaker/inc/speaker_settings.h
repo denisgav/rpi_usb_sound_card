@@ -21,6 +21,8 @@ typedef struct _speaker_settings_t {
 
   uint16_t samples_in_i2s_frame_min;
   uint16_t samples_in_i2s_frame_max;
+
+  bool status_updated;  
 } speaker_settings_t;
 
 

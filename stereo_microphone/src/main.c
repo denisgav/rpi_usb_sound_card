@@ -36,6 +36,9 @@
 
 #include "ssd1306/ssd1306.h"
 
+// Comment this define to disable volume control
+//#define APPLY_VOLUME_FEATURE
+
 
 // Pointer to I2S handler
 machine_i2s_obj_t* i2s0 = NULL;
@@ -88,6 +91,9 @@ void display_ssd1306_info();
 void setup_led_and_button();
 void button_mute_ISR(uint gpio, uint32_t events);
 //---------------------------------------
+
+int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, int32_t volume_db);
+int16_t i2s_to_usb_16b_sample_convert(uint16_t sample, int32_t volume_db);
 
 /*------------- MAIN -------------*/
 int main(void)
@@ -224,33 +230,112 @@ void on_usb_microphone_tx_pre_load(uint8_t rhport, uint8_t itf, uint8_t ep_in, u
 
 void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting)
 {
-  i2s_32b_audio_sample buffer[USB_MIC_SAMPLE_BUFFER_SIZE];
   if(i2s0) {
+    i2s_32b_audio_sample buffer[USB_MIC_SAMPLE_BUFFER_SIZE];
+
     // Read data from microphone
     uint32_t buffer_size_read = microphone_settings.samples_in_i2s_frame_min * 4 * 2;
     int num_bytes_read = machine_i2s_read_stream(i2s0, (void*)&buffer[0], buffer_size_read);
 
-    if(microphone_settings.resolution == 24){
+    if(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX == 2){
+      uint32_t volume_db_master = microphone_settings.volume_db[0];
+      uint32_t volume_db_left = microphone_settings.volume_db[1];
+      uint32_t volume_db_right = microphone_settings.volume_db[2];
       if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
         int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
         for(uint32_t i = 0; i < num_of_frames_read; i++){
-            //i2s_24b_dummy_buffer[i] = buffer[i].left; // TODO: check this value
-            i2s_24b_dummy_buffer[i*2] = (microphone_settings.user_mute) ? 0 : buffer[i].left; // TODO: check this value
-            i2s_24b_dummy_buffer[i*2+1] = (microphone_settings.user_mute) ? 0 : buffer[i].right; // TODO: check this value
+          if(microphone_settings.resolution == 24){
+            int32_t left_24b = (int32_t)buffer[i].left;
+            int32_t right_24b = (int32_t)buffer[i].right;
+            left_24b = i2s_to_usb_32b_sample_convert(left_24b, volume_db_left);
+            left_24b = i2s_to_usb_32b_sample_convert(left_24b, volume_db_master);
+            right_24b = i2s_to_usb_32b_sample_convert(right_24b, volume_db_right);
+            right_24b = i2s_to_usb_32b_sample_convert(right_24b, volume_db_master);
+
+            i2s_24b_dummy_buffer[i*2] = left_24b; // TODO: check this value
+            i2s_24b_dummy_buffer[i*2+1] = right_24b; // TODO: check this value
+          }
+          else {
+            int32_t left_16b = (int32_t)buffer[i].left >> 16;
+            int32_t right_16b = (int32_t)buffer[i].right >> 16;
+            left_16b = i2s_to_usb_16b_sample_convert(left_16b, volume_db_left);
+            left_16b = i2s_to_usb_16b_sample_convert(left_16b, volume_db_master);
+            right_16b = i2s_to_usb_16b_sample_convert(right_16b, volume_db_right);
+            right_16b = i2s_to_usb_16b_sample_convert(right_16b, volume_db_master);
+
+            i2s_16b_dummy_buffer[i*2]   = left_16b; // TODO: check this value
+            i2s_16b_dummy_buffer[i*2+1] = right_16b; // TODO: check this value
+          }
         }
       }
-    } else {
+    }
+    else{ //CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX is 1
+      uint32_t volume_db_master = microphone_settings.volume_db[0];
+      uint32_t volume_db_mono = microphone_settings.volume_db[1];
       if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
         int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
         for(uint32_t i = 0; i < num_of_frames_read; i++){
-            //i2s_16b_dummy_buffer[i] = (int16_t)((int32_t)buffer[i].left >> 8); // TODO: check this value
-            i2s_16b_dummy_buffer[i*2]   = (microphone_settings.user_mute) ? 0 : (int16_t)((int32_t)buffer[i].left >> 8); // TODO: check this value
-            i2s_16b_dummy_buffer[i*2+1] = (microphone_settings.user_mute) ? 0 : (int16_t)((int32_t)buffer[i].right >> 8); // TODO: check this value
+          if(microphone_settings.resolution == 24){
+            int32_t mono_24b = (int32_t)buffer[i].left;
+            mono_24b = i2s_to_usb_32b_sample_convert(mono_24b, volume_db_mono);
+            mono_24b = i2s_to_usb_32b_sample_convert(mono_24b, volume_db_master);
+
+            i2s_24b_dummy_buffer[i] = mono_24b; // TODO: check this value
+          }
+          else {
+            int32_t mono_24b = (int32_t)buffer[i].left >> 8;
+            mono_24b = i2s_to_usb_16b_sample_convert(mono_24b, volume_db_mono);
+            mono_24b = i2s_to_usb_16b_sample_convert(mono_24b, volume_db_master);
+
+            i2s_16b_dummy_buffer[i]   = mono_24b; // TODO: check this value
+          }
         }
       }
     }
   }
   microphone_settings.streaming_cntr = 5;
+}
+
+int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, int32_t volume_db){
+  #ifdef APPLY_VOLUME_FEATURE
+    if(microphone_settings.user_mute) 
+      return 0;
+    else
+    {
+      int64_t sample_tmp = (int64_t)sample * (int64_t)volume_db;
+      sample_tmp = sample_tmp>>15;
+      return (int32_t)sample_tmp;
+      //return (int32_t)sample;
+    }
+  #else //APPLY_VOLUME_FEATURE
+    if(microphone_settings.user_mute) 
+      return 0;
+    else
+    {
+      return (int32_t)sample;
+    }
+  #endif //APPLY_VOLUME_FEATURE
+}
+
+int16_t i2s_to_usb_16b_sample_convert(uint16_t sample, int32_t volume_db){
+  #ifdef APPLY_VOLUME_FEATURE
+    if(microphone_settings.user_mute) 
+      return 0;
+    else
+    {
+      int32_t sample_tmp = (int32_t)(sample) * (int32_t)volume_db;
+      sample_tmp = sample_tmp>>15;
+      return (int16_t)sample_tmp;
+      //return (int16_t)sample;
+    }
+  #else //APPLY_VOLUME_FEATURE
+    if(microphone_settings.user_mute) 
+      return 0;
+    else
+    {
+      return (int16_t)(sample);
+    }
+  #endif //APPLY_VOLUME_FEATURE
 }
 
 
@@ -362,3 +447,4 @@ void display_ssd1306_info(){
   
   ssd1306_show(&disp);
 }
+

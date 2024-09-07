@@ -16,8 +16,25 @@
 #endif //I2S_SPK_SCK
 
 #ifndef I2S_SPK_WS
-    #define I2S_SPK_WS (I2S_SPK_SCK+1) // needs to be SPK_SCK +1
+    #define I2S_SPK_WS (I2S_SPK_SCK+1) /*8*/// needs to be SPK_SCK +1
 #endif //I2S_SPK_WS
+
+#ifndef I2S_SPK_PCM5102A_FLT
+    #define I2S_SPK_PCM5102A_FLT (I2S_SPK_WS+1)/*9*/
+#endif //I2S_SPK_PCM5102A_FLT
+
+#ifndef I2S_SPK_PCM5102A_DEMP
+    #define I2S_SPK_PCM5102A_DEMP (I2S_SPK_PCM5102A_FLT+1)/*10*/
+#endif //I2S_SPK_PCM5102A_DEMP
+
+#ifndef I2S_SPK_PCM5102A_XSMT
+    #define I2S_SPK_PCM5102A_XSMT (I2S_SPK_PCM5102A_DEMP+1)/*11*/
+#endif //I2S_SPK_PCM5102A_XSMT
+
+#ifndef I2S_SPK_PCM5102A_FMT
+    #define I2S_SPK_PCM5102A_FMT (I2S_SPK_PCM5102A_XSMT+1)/*12*/
+#endif //I2S_SPK_PCM5102A_FMT
+
 
 #ifndef I2S_SPK_BPS
     #define I2S_SPK_BPS 32

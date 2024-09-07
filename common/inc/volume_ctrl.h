@@ -25,12 +25,19 @@ static const uint16_t db_to_vol[91] = {
 
 // actually windows doesn't seem to like this in the middle, so set top range to 0db
 #define CENTER_VOLUME_INDEX 91
+#define ENC_NUM_OF_FP_BITS 8
 
-#define ENCODE_DB(x) ((uint16_t)(int16_t)((x)*256))
+#define ENCODE_DB(x) ((uint16_t)(int16_t)((x)<<ENC_NUM_OF_FP_BITS))
 
-#define MIN_VOLUME           ENCODE_DB(-CENTER_VOLUME_INDEX)
-#define DEFAULT_VOLUME       ENCODE_DB(0)
-#define MAX_VOLUME           ENCODE_DB(count_of(db_to_vol)-CENTER_VOLUME_INDEX)
-#define VOLUME_RESOLUTION    ENCODE_DB(1)
+#define DEFAULT_VOLUME        (0)
+
+#define MIN_VOLUME_ENC        ENCODE_DB(-CENTER_VOLUME_INDEX)
+#define MAX_VOLUME_ENC        ENCODE_DB(count_of(db_to_vol)-CENTER_VOLUME_INDEX)
+#define VOLUME_RESOLUTION_ENC ENCODE_DB(1)
+
+#define MIN_VOLUME        (-CENTER_VOLUME_INDEX)
+#define MAX_VOLUME        (count_of(db_to_vol)-CENTER_VOLUME_INDEX)
+#define VOLUME_RESOLUTION (1)
 
 uint16_t vol_to_db_convert(bool channel_mute, uint16_t channel_volume);
+uint16_t vol_to_db_convert_enc(bool channel_mute, uint16_t channel_volume);

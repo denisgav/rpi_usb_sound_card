@@ -49,6 +49,7 @@ i2s_16b_audio_sample spk_16b_i2s_buffer[SAMPLE_BUFFER_SIZE];
 int32_t spk_buf[CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ / 4];
 
 void led_blinking_task(void);
+void status_update_task(void);
 
 int32_t usb_to_i2s_32b_sample_convert(int32_t sample, int32_t volume_db);
 
@@ -80,6 +81,13 @@ void usb_speaker_tud_audio_rx_done_pre_read_handler(uint8_t rhport, uint16_t n_b
 //---------------------------------------
 ssd1306_t disp;
 void setup_ssd1306();
+void display_ssd1306_info();
+//---------------------------------------
+
+//---------------------------------------
+//           PCM5102A & UDA1334A cfg
+//---------------------------------------
+void setup_speaker_cfg();
 //---------------------------------------
 
 /*------------- MAIN -------------*/
@@ -88,7 +96,9 @@ int main(void)
   speaker_settings.sample_rate  = I2S_SPK_RATE_DEF;
   speaker_settings.resolution = CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX;
   speaker_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
+  speaker_settings.status_updated = false;
 
+  setup_speaker_cfg();
   setup_ssd1306();
 
   usb_speaker_set_mute_set_handler(usb_speaker_mute_handler);
@@ -106,13 +116,15 @@ int main(void)
   {
     speaker_settings.volume[i] = DEFAULT_VOLUME;
     speaker_settings.mute[i] = 0;
-    speaker_settings.volume_db[i] = vol_to_db_convert(speaker_settings.mute[i], speaker_settings.volume[i]);
+    speaker_settings.volume_db[i] = vol_to_db_convert_enc(speaker_settings.mute[i], speaker_settings.volume[i]);
   }
 
   while (1) {
     usb_speaker_task();
 
     led_blinking_task();
+
+    status_update_task();
   }
 }
 
@@ -135,6 +147,30 @@ void setup_ssd1306(){
   ssd1306_show(&disp);
 }
 
+//---------------------------------------
+//           PCM5102A & UDA1334A cfg
+//---------------------------------------
+void setup_speaker_cfg(){
+  gpio_init(I2S_SPK_PCM5102A_FLT);
+  gpio_set_dir(I2S_SPK_PCM5102A_FLT, GPIO_OUT);
+
+  gpio_init(I2S_SPK_PCM5102A_DEMP);
+  gpio_set_dir(I2S_SPK_PCM5102A_DEMP, GPIO_OUT);
+
+  gpio_init(I2S_SPK_PCM5102A_XSMT);
+  gpio_set_dir(I2S_SPK_PCM5102A_XSMT, GPIO_OUT);
+
+  gpio_init(I2S_SPK_PCM5102A_FMT);
+  gpio_set_dir(I2S_SPK_PCM5102A_FMT, GPIO_OUT);
+
+
+  gpio_put(I2S_SPK_PCM5102A_FLT, 0);
+  gpio_put(I2S_SPK_PCM5102A_DEMP, 0);
+  gpio_put(I2S_SPK_PCM5102A_XSMT, 1);
+  gpio_put(I2S_SPK_PCM5102A_FMT, 0);
+}
+//---------------------------------------
+
 //-------------------------
 
 //-------------------------
@@ -146,29 +182,34 @@ void usb_speaker_mute_handler(int8_t bChannelNumber, int8_t mute_in)
 {
   speaker_settings.mute[bChannelNumber] = mute_in;
   speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
+  speaker_settings.status_updated = true;
 }
 
 void usb_speaker_volume_handler(int8_t bChannelNumber, int16_t volume_in)
 {
   speaker_settings.volume[bChannelNumber] = volume_in;
   speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
+  speaker_settings.status_updated = true;
 }
 
 void usb_speaker_current_sample_rate_handler(uint32_t current_sample_rate_in)
 {
   speaker_settings.sample_rate = current_sample_rate_in;
   refresh_i2s_connections();
+  speaker_settings.status_updated = true;
 }
 
 void usb_speaker_current_resolution_handler(uint8_t current_resolution_in)
 {
   speaker_settings.resolution = current_resolution_in;
   refresh_i2s_connections();
+  speaker_settings.status_updated = true;
 }
 
 void usb_speaker_current_status_set_handler(uint32_t blink_interval_ms_in)
 {
   speaker_settings.blink_interval_ms = blink_interval_ms_in;
+  speaker_settings.status_updated = true;
 }
 
 void usb_speaker_tud_audio_rx_done_pre_read_handler(uint8_t rhport, uint16_t n_bytes_received, uint8_t func_id, uint8_t ep_out, uint8_t cur_alt_setting)
@@ -260,4 +301,95 @@ void led_blinking_task(void)
 
   board_led_write(led_state);
   led_state = 1 - led_state;
+}
+
+//--------------------------------------------------------------------+
+// STATUS UPDATE TASK
+//--------------------------------------------------------------------+
+void status_update_task(void){
+  static uint32_t prev_status_update__ms = 0;
+
+  uint32_t cur_time_ms = board_millis();
+
+  // Update status 2 times per second
+  if (cur_time_ms - prev_status_update__ms < 500) 
+    return;
+
+  prev_status_update__ms = cur_time_ms;
+
+  //gpio_put(LED_RED_PIN, speaker_settings.user_mute);
+  //gpio_put(LED_YELLOW_PIN, (speaker_settings.streaming_cntr != 0));
+  //gpio_put(LED_GREEN_PIN, (speaker_settings.blink_interval_ms == BLINK_MOUNTED));
+
+  // if(speaker_settings.streaming_cntr >= 1){
+  //   speaker_settings.streaming_cntr --;
+  // }
+
+  if(speaker_settings.status_updated == true){
+    speaker_settings.status_updated = false;
+    display_ssd1306_info();
+  }
+}
+
+void display_ssd1306_info(){
+  ssd1306_clear(&disp);
+
+  switch(speaker_settings.blink_interval_ms){
+    case BLINK_NOT_MOUNTED:{
+      ssd1306_draw_string(&disp, 4, 0, 1, "Speaker");
+      ssd1306_draw_string(&disp, 4, 16, 1, "not mounted");
+      break;
+    }
+    case BLINK_SUSPENDED:{
+      ssd1306_draw_string(&disp, 4, 0, 1, "Speaker");
+      ssd1306_draw_string(&disp, 4, 16, 1, "suspended");
+      break;
+    }
+    case BLINK_MOUNTED:{
+      ssd1306_draw_string(&disp, 4, 0, 1, "Speaker");
+      ssd1306_draw_string(&disp, 4, 16, 1, "mounted");
+      break;
+    }
+    case BLINK_STREAMING:{
+      char format_str[20] = "Fmt:";
+      char format_tmp_str[20] = "";
+
+      itoa((speaker_settings.sample_rate), format_tmp_str, 10);
+      strcat(format_str, format_tmp_str);
+      strcat(format_str, " Hz, ");
+
+      itoa(speaker_settings.resolution, format_tmp_str, 10);
+      strcat(format_str, format_tmp_str);
+      strcat(format_str, " bit");
+
+      char vol_str[20] = "Vol M:";
+      char vol_tmp_str[20] = "";
+
+      itoa((speaker_settings.volume[0]>>ENC_NUM_OF_FP_BITS), vol_tmp_str, 10);
+      strcat(vol_str, vol_tmp_str);
+
+      strcat(vol_str, " L:");
+      itoa((speaker_settings.volume[1]>>ENC_NUM_OF_FP_BITS), vol_tmp_str, 10);
+      strcat(vol_str, vol_tmp_str);
+
+      strcat(vol_str, " R:");
+      itoa((speaker_settings.volume[2]>>ENC_NUM_OF_FP_BITS), vol_tmp_str, 10);
+      strcat(vol_str, vol_tmp_str);
+
+      char mute_str[20] = "Mute M:";
+      strcat(mute_str, (speaker_settings.mute[0] ? "T" : "F"));
+
+      strcat(mute_str, " L:");
+      strcat(mute_str, (speaker_settings.mute[1] ? "T" : "F"));
+
+      strcat(mute_str, " R:");
+      strcat(mute_str, (speaker_settings.mute[2] ? "T" : "F"));
+
+      ssd1306_draw_string(&disp, 4, 0, 1, format_str);
+      ssd1306_draw_string(&disp, 4, 12, 1, vol_str);
+      ssd1306_draw_string(&disp, 4, 24, 1, mute_str);
+    }
+  } 
+  
+  ssd1306_show(&disp);
 }
