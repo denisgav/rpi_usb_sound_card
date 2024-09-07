@@ -76,104 +76,48 @@ uint8_t const * tud_descriptor_device_cb(void)
 // Configuration Descriptor
 //--------------------------------------------------------------------+
 
-#define CONFIG_TOTAL_LEN      (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN + TUD_HID_INOUT_DESC_LEN + TUD_AUDIO_SPEAKER_STEREO_FB_DESC_LEN)
+#define CONFIG_TOTAL_LEN      (TUD_CONFIG_DESC_LEN + TUD_AUDIO_SPEAKER_STEREO_FB_DESC_LEN)
 
-#define EPNUM_HID       0x01
-#define EPNUM_HID_GIO   0x02
-#define EPNUM_AUDIO_FB  0x03
-#define EPNUM_AUDIO_OUT 0x03
+#if CFG_TUSB_MCU == OPT_MCU_LPC175X_6X || CFG_TUSB_MCU == OPT_MCU_LPC177X_8X || CFG_TUSB_MCU == OPT_MCU_LPC40XX
+  // LPC 17xx and 40xx endpoint type (bulk/interrupt/iso) are fixed by its number
+  // 0 control, 1 In, 2 Bulk, 3 Iso, 4 In etc ...
+  #define EPNUM_AUDIO_FB    0x03
+  #define EPNUM_AUDIO_OUT   0x03
+//  #define EPNUM_DEBUG       0x04
 
-// #if CFG_TUSB_MCU == OPT_MCU_LPC175X_6X || CFG_TUSB_MCU == OPT_MCU_LPC177X_8X || CFG_TUSB_MCU == OPT_MCU_LPC40XX
-//   // LPC 17xx and 40xx endpoint type (bulk/interrupt/iso) are fixed by its number
-//   // 0 control, 1 In, 2 Bulk, 3 Iso, 4 In etc ...
-//   #define EPNUM_AUDIO_FB    0x03
-//   #define EPNUM_AUDIO_OUT   0x03
-// //  #define EPNUM_DEBUG       0x04
+#elif CFG_TUSB_MCU == OPT_MCU_NRF5X
+  // ISO endpoints for NRF5x are fixed to 0x08 (0x88)
+  #define EPNUM_AUDIO_FB    0x08
+  #define EPNUM_AUDIO_OUT   0x08
+//  #define EPNUM_DEBUG       0x01
 
-// #elif CFG_TUSB_MCU == OPT_MCU_NRF5X
-//   // ISO endpoints for NRF5x are fixed to 0x08 (0x88)
-//   #define EPNUM_AUDIO_FB    0x08
-//   #define EPNUM_AUDIO_OUT   0x08
-// //  #define EPNUM_DEBUG       0x01
+#elif CFG_TUSB_MCU == OPT_MCU_SAMG  || CFG_TUSB_MCU ==  OPT_MCU_SAMX7X
+  // SAMG & SAME70 don't support a same endpoint number with different direction IN and OUT
+  //    e.g EP1 OUT & EP1 IN cannot exist together
+  #define EPNUM_AUDIO_FB    0x01
+  #define EPNUM_AUDIO_OUT   0x02
+//  #define EPNUM_DEBUG       0x03
 
-// #elif CFG_TUSB_MCU == OPT_MCU_SAMG  || CFG_TUSB_MCU ==  OPT_MCU_SAMX7X
-//   // SAMG & SAME70 don't support a same endpoint number with different direction IN and OUT
-//   //    e.g EP1 OUT & EP1 IN cannot exist together
-//   #define EPNUM_AUDIO_FB    0x01
-//   #define EPNUM_AUDIO_OUT   0x02
-// //  #define EPNUM_DEBUG       0x03
+#elif CFG_TUSB_MCU == OPT_MCU_FT90X || CFG_TUSB_MCU == OPT_MCU_FT93X
+  // FT9XX doesn't support a same endpoint number with different direction IN and OUT
+  //    e.g EP1 OUT & EP1 IN cannot exist together
+  #define EPNUM_AUDIO_FB    0x01
+  #define EPNUM_AUDIO_OUT   0x02
+//  #define EPNUM_DEBUG       0x03
 
-// #elif CFG_TUSB_MCU == OPT_MCU_FT90X || CFG_TUSB_MCU == OPT_MCU_FT93X
-//   // FT9XX doesn't support a same endpoint number with different direction IN and OUT
-//   //    e.g EP1 OUT & EP1 IN cannot exist together
-//   #define EPNUM_AUDIO_FB    0x01
-//   #define EPNUM_AUDIO_OUT   0x02
-// //  #define EPNUM_DEBUG       0x03
-
-// #else
-//   #define EPNUM_AUDIO_FB    0x01
-//   #define EPNUM_AUDIO_OUT   0x01
-// //  #define EPNUM_DEBUG       0x02
-// #endif
-
-// #define EPNUM_HID   0x81
-
-//--------------------------------------------------------------------+
-// HID Report Descriptor
-//--------------------------------------------------------------------+
-
-uint8_t const desc_hid_report[] =
-{
-  MY_TUD_HID_REPORT_DESC_CONSUMER( HID_REPORT_ID(REPORT_ID_CONSUMER_CONTROL ))
-};
-
-uint8_t const desc_hid_report_gio[] =
-{
-  TUD_HID_REPORT_DESC_GENERIC_INOUT(CFG_TUD_HID_EP_BUFSIZE)
-};
-
-// Invoked when received GET HID REPORT DESCRIPTOR
-// Application return pointer to descriptor
-// Descriptor contents must exist long enough for transfer to complete
-uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf)
-{
-  if (itf == ITF_NUM_HID)
-  {
-    return desc_hid_report;
-  }
-  else
-  {
-    return desc_hid_report_gio;
-  }
-}
-//--------------------------------------------------------------------+
+#else
+  #define EPNUM_AUDIO_FB    0x01
+  #define EPNUM_AUDIO_OUT   0x01
+//  #define EPNUM_DEBUG       0x02
+#endif
 
 uint8_t const desc_configuration[] =
 {
     // Config number, interface count, string index, total length, attribute, power in mA
-    TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
-
-    // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval
-    TUD_HID_DESCRIPTOR(ITF_NUM_HID,
-                 4,
-           HID_ITF_PROTOCOL_NONE,
-           sizeof(desc_hid_report),
-           EPNUM_HID | 0x80,
-           CFG_TUD_HID_EP_BUFSIZE,
-           5),
-
-    TUD_HID_INOUT_DESCRIPTOR(ITF_NUM_HID_GIO,
-                       5,
-               HID_ITF_PROTOCOL_NONE,
-               sizeof(desc_hid_report_gio),
-               EPNUM_HID_GIO,
-               0x80 | EPNUM_HID_GIO,
-               CFG_TUD_HID_EP_BUFSIZE,
-               10),
+    TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
 
     // string index, EP Out & FB address
     TUD_AUDIO_SPEAKER_STEREO_FB_DESCRIPTOR(2, EPNUM_AUDIO_OUT, EPNUM_AUDIO_FB | 0x80, 4)
-
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -205,7 +149,6 @@ char const *string_desc_arr[] =
   "Pico Speaker",                 // 2: Product
   NULL,                           // 3: Serials will use unique ID if possible
   "UAC2 Speaker",                 // 4: Audio Interface
-  "Media Control",                // 5: Audio Control
 };
 
 static uint16_t _desc_str[32 + 1];

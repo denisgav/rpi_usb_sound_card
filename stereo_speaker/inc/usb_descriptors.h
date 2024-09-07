@@ -26,8 +26,6 @@
 #ifndef _USB_DESCRIPTORS_H_
 #define _USB_DESCRIPTORS_H_
 
-#include "usb_hid_custom_ctrl_descriptor.h"
-
 // #include "tusb.h"
 
 // Unit numbers are arbitrary selected
@@ -65,7 +63,7 @@
 
 #define TUD_AUDIO_SPEAKER_STEREO_FB_DESCRIPTOR(_stridx, _epout, _epfb, _epfbsize) \
     /* Standard Interface Association Descriptor (IAD) */\
-    TUD_AUDIO_DESC_IAD(/*_firstitf*/ ITF_NUM_AUDIO_CONTROL, /*_nitfs*/ ITF_NUM_AUDIO_TOTAL, /*_stridx*/ 0x00),\
+    TUD_AUDIO_DESC_IAD(/*_firstitf*/ ITF_NUM_AUDIO_CONTROL, /*_nitfs*/ ITF_NUM_TOTAL, /*_stridx*/ 0x00),\
     /* Standard AC Interface Descriptor(4.7.1) */\
     TUD_AUDIO_DESC_STD_AC(/*_itfnum*/ ITF_NUM_AUDIO_CONTROL, /*_nEPs*/ 0x00, /*_stridx*/ _stridx),\
     /* Class-Specific AC Interface Header Descriptor(4.7.2) */\

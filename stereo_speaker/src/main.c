@@ -35,9 +35,6 @@
 #include "i2s/machine_i2s.h"
 #include "volume_ctrl.h"
 
-#include "common_types.h"
-#include "key_cmd_ring_buffer.h"
-
 #include "ssd1306/ssd1306.h"
 
 // Pointer to I2S handler
@@ -93,25 +90,6 @@ void display_ssd1306_info();
 void setup_speaker_cfg();
 //---------------------------------------
 
-//---------------------------------------
-//           LED and button
-//---------------------------------------
-void setup_led_and_button();
-void button_mute_ISR(uint gpio, uint32_t events);
-//---------------------------------------
-
-//---------------------------------------
-//           HID
-//---------------------------------------
-// USB HID control
-uint32_t lastDebounceTime = 0;  // the last time the output pin was toggled
-// queue of the key commands need to send
-key_cmd_ring_buffer_t key_commands;
-
-
-void hid_task(void);
-//---------------------------------------
-
 /*------------- MAIN -------------*/
 int main(void)
 {
@@ -120,11 +98,8 @@ int main(void)
   speaker_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
   speaker_settings.status_updated = false;
 
-  setup_led_and_button();
   setup_speaker_cfg();
   setup_ssd1306();
-
-  memset(&key_commands, 0x0, sizeof(key_commands));
 
   usb_speaker_set_mute_set_handler(usb_speaker_mute_handler);
   usb_speaker_set_volume_set_handler(usb_speaker_volume_handler);
@@ -146,8 +121,6 @@ int main(void)
 
   while (1) {
     usb_speaker_task();
-
-    hid_task();
 
     led_blinking_task();
 
@@ -197,79 +170,6 @@ void setup_speaker_cfg(){
   gpio_put(I2S_SPK_PCM5102A_FMT, 0);
 }
 //---------------------------------------
-
-//---------------------------------------
-//           LED and button
-//---------------------------------------
-void setup_led_and_button(){
-  gpio_init(LED_WHITE_PIN);
-  gpio_set_dir(LED_WHITE_PIN, GPIO_OUT);
-
-  gpio_init(LED_YELLOW_PIN);
-  gpio_set_dir(LED_YELLOW_PIN, GPIO_OUT);
-
-  gpio_init(LED_GREEN_PIN);
-  gpio_set_dir(LED_GREEN_PIN, GPIO_OUT);
-
-  gpio_init(BTN_MUTE_PIN);
-  gpio_set_dir(BTN_MUTE_PIN, GPIO_IN);
-
-  gpio_set_irq_enabled_with_callback(BTN_MUTE_PIN, GPIO_IRQ_EDGE_RISE, 1, button_mute_ISR);
-
-  gpio_put(LED_WHITE_PIN, 0);
-}
-
-void button_mute_ISR(uint gpio, uint32_t events){
-  uint8_t command = USB_HID_MUTE; //HID_USAGE_CONSUMER_MUTE;
-
-  key_cmd_ring_buffer_item_t key_report;
-  memset(&key_report, 0x0, sizeof(key_cmd_ring_buffer_item_t));
-
-  key_report.media_key_report = command;
-  key_cmd_ring_buffer_queue_write(&key_commands, &key_report);
-
-  key_report.media_key_report = 0;
-  key_cmd_ring_buffer_queue_write(&key_commands, &key_report);
-}
-//---------------------------------------
-
-//--------------------------------------------------------------------+
-// USB HID
-//--------------------------------------------------------------------+
-
-// Every 10ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
-// tud_hid_report_complete_cb() is used to send the next report after previous one is complete
-void hid_task(void)
-{
-  // Poll every 10ms
-  const uint32_t interval_ms = 10;
-  static uint32_t start_ms = 0;
-
-  if ( board_millis() - start_ms < interval_ms) return; // not enough time
-  start_ms += interval_ms;
-
-  //uint32_t const btn = board_button_read();
-
-  int has_key_event = key_cmd_ring_buffer_has_item(&key_commands);
-  if ( tud_suspended() && has_key_event ){
-    // Wake up host if we are in suspend mode
-    // and REMOTE_WAKEUP feature is enabled by host
-    tud_remote_wakeup();
-  }
-  else
-  {
-    key_cmd_ring_buffer_item_t* report = key_cmd_ring_buffer_queue_read(&key_commands);
-    if(report != NULL)
-    {
-      // media buttons interface
-      uint8_t const report_id = REPORT_ID_CONSUMER_CONTROL;
-      media_key_report_t* media_key_report = &(report->media_key_report);
-      tud_hid_n_report(ITF_NUM_HID, report_id, media_key_report, sizeof(media_key_report_t));
-
-      gpio_put(LED_WHITE_PIN, 1);
-    }
-  }
-}
 
 //-------------------------
 
@@ -383,78 +283,6 @@ int16_t usb_to_i2s_16b_sample_convert(int16_t sample, int32_t volume_db)
   //return (int16_t)sample;
 }
 
-// Invoked when received SET_PROTOCOL request
-// protocol is either HID_PROTOCOL_BOOT (0) or HID_PROTOCOL_REPORT (1)
-void tud_hid_set_protocol_cb(uint8_t instance, uint8_t protocol)
-{
-  (void) instance;
-  (void) protocol;
-
-  // nothing to do since we use the same compatible boot report for both Boot and Report mode.
-  // TODO set a indicator for user
-}
-
-// Invoked when sent REPORT successfully to host
-// Application can use this to send the next report
-// Note: For composite reports, report[0] is report ID
-void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint16_t len)
-{
-  (void) instance;
-  (void) report;
-  (void) len;
-
-  // nothing to do
-}
-
-// Invoked when received GET_REPORT control request
-// Application must fill buffer report's content and return its length.
-// Return zero will cause the stack to STALL request
-uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen)
-{
-  // TODO not Implemented
-  (void) instance;
-  (void) report_id;
-  (void) report_type;
-  (void) buffer;
-  (void) reqlen;
-
-  return 0;
-}
-
-// Invoked when received SET_REPORT control request or
-// received data on OUT endpoint ( Report ID = 0, Type = 0 )
-void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize)
-{
-  (void) report_id;
-
-  // // keyboard interface
-  // if (instance == ITF_NUM_KEYBOARD)
-  // {
-  //   // Set keyboard LED e.g Capslock, Numlock etc...
-  //   if (report_type == HID_REPORT_TYPE_OUTPUT)
-  //   {
-  //     // bufsize should be (at least) 1
-  //     if ( bufsize < 1 ) return;
-
-  //     uint8_t const kbd_leds = buffer[0];
-
-  //     if (kbd_leds & KEYBOARD_LED_CAPSLOCK)
-  //     {
-  //       // Capslock On: disable blink, turn led on
-  //       //blink_interval_ms = 0;
-  //       //board_led_write(true);
-  //       HAL_GPIO_WritePin(EXT_LED_GPIO_Port, EXT_LED_Pin, GPIO_PIN_SET);
-  //     }else
-  //     {
-  //       // Caplocks Off: back to normal blink
-  //       //board_led_write(false);
-  //       //blink_interval_ms = BLINK_MOUNTED;
-  //       HAL_GPIO_WritePin(EXT_LED_GPIO_Port, EXT_LED_Pin, GPIO_PIN_RESET);
-  //     }
-  //   }
-  // }
-}
-
 //--------------------------------------------------------------------+
 // BLINKING TASK
 //--------------------------------------------------------------------+
@@ -489,8 +317,9 @@ void status_update_task(void){
 
   prev_status_update__ms = cur_time_ms;
 
-  gpio_put(LED_GREEN_PIN, (speaker_settings.blink_interval_ms == BLINK_MOUNTED));
-  gpio_put(LED_YELLOW_PIN, (speaker_settings.blink_interval_ms == BLINK_STREAMING));
+  //gpio_put(LED_RED_PIN, speaker_settings.user_mute);
+  //gpio_put(LED_YELLOW_PIN, (speaker_settings.streaming_cntr != 0));
+  //gpio_put(LED_GREEN_PIN, (speaker_settings.blink_interval_ms == BLINK_MOUNTED));
 
   // if(speaker_settings.streaming_cntr >= 1){
   //   speaker_settings.streaming_cntr --;

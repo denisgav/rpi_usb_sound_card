@@ -5,7 +5,6 @@ add_executable(stereo_speaker
     src/main.c
     src/usb_descriptors.c
     src/usb_speaker.c
-    src/key_cmd_ring_buffer.c
 )
 
 target_include_directories(stereo_speaker PRIVATE ${CMAKE_CURRENT_LIST_DIR}/inc)
