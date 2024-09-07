@@ -97,7 +97,7 @@ void setup_speaker_cfg();
 //           LED and button
 //---------------------------------------
 void setup_led_and_button();
-void button_ISR(uint gpio, uint32_t events);
+void button_mute_ISR(uint gpio, uint32_t events);
 //---------------------------------------
 
 //---------------------------------------
@@ -202,57 +202,35 @@ void setup_speaker_cfg(){
 //           LED and button
 //---------------------------------------
 void setup_led_and_button(){
-  uint16_t led_pins[NUM_OF_LEDS] = LED_PINS;
-  for(uint16_t led_idx=0; led_idx < NUM_OF_LEDS; led_idx++){
-    gpio_init(led_pins[led_idx]);
-    gpio_set_dir(led_pins[led_idx], GPIO_OUT);
-  }
+  gpio_init(LED_WHITE_PIN);
+  gpio_set_dir(LED_WHITE_PIN, GPIO_OUT);
 
-  uint16_t btn_pins[NUM_OF_BUTTONS] = BTN_PINS;
-  for(uint16_t btn_idx=0; btn_idx < NUM_OF_BUTTONS; btn_idx++){
-    gpio_init(btn_pins[btn_idx]);
-    gpio_set_dir(btn_pins[btn_idx], GPIO_IN);
-    gpio_set_irq_enabled_with_callback(btn_pins[btn_idx], GPIO_IRQ_EDGE_RISE, 1, button_ISR);
-  }
+  gpio_init(LED_YELLOW_PIN);
+  gpio_set_dir(LED_YELLOW_PIN, GPIO_OUT);
+
+  gpio_init(LED_GREEN_PIN);
+  gpio_set_dir(LED_GREEN_PIN, GPIO_OUT);
+
+  gpio_init(BTN_MUTE_PIN);
+  gpio_set_dir(BTN_MUTE_PIN, GPIO_IN);
+
+  gpio_set_irq_enabled_with_callback(BTN_MUTE_PIN, GPIO_IRQ_EDGE_RISE, 1, button_mute_ISR);
 
   gpio_put(LED_WHITE_PIN, 0);
 }
 
-void button_ISR(uint gpio, uint32_t events){
-  // Poll every 50ms
-  const uint32_t interval_ms = 50;
-  static uint32_t prev_button_ISR_call = 0;
+void button_mute_ISR(uint gpio, uint32_t events){
+  uint8_t command = USB_HID_MUTE; //HID_USAGE_CONSUMER_MUTE;
 
-  uint32_t cur_time_ms = board_millis();
+  key_cmd_ring_buffer_item_t key_report;
+  memset(&key_report, 0x0, sizeof(key_cmd_ring_buffer_item_t));
 
-  if ( cur_time_ms < (prev_button_ISR_call + interval_ms)) return; // not enough time
-  prev_button_ISR_call = cur_time_ms;
+  key_report.media_key_report = command;
+  key_cmd_ring_buffer_queue_write(&key_commands, &key_report);
 
-  uint8_t command = 0;
-
-  switch(gpio){
-      case BTN_SCAN_NEXT_PIN:     {command = USB_HID_SCAN_NEXT; break;}
-      case BTN_SCAN_PREV_PIN:     {command = USB_HID_SCAN_PREV; break;}
-      case BTN_SCAN_STOP_PIN:     {command = USB_HID_STOP;      break;}
-      case BTN_SCAN_PAUSE_PIN:    {command = USB_HID_PAUSE;     break;}
-      case BTN_SCAN_MUTE_PIN:     {command = USB_HID_MUTE;      break;}
-      case BTN_SCAN_VOL_UP_PIN:   {command = USB_HID_VOL_UP;    break;}
-      case BTN_SCAN_VOL_DOWN_PIN: {command = USB_HID_VOL_DEC;   break;}
-      default: {break;}
-  }
-
-  if(command != 0){
-    key_cmd_ring_buffer_item_t key_report;
-    memset(&key_report, 0x0, sizeof(key_cmd_ring_buffer_item_t));
-
-    key_report.media_key_report = command;
-    key_cmd_ring_buffer_queue_write(&key_commands, &key_report);
-
-    key_report.media_key_report = 0;
-    key_cmd_ring_buffer_queue_write(&key_commands, &key_report);
-  }
+  key_report.media_key_report = 0;
+  key_cmd_ring_buffer_queue_write(&key_commands, &key_report);
 }
-
 //---------------------------------------
 
 //--------------------------------------------------------------------+

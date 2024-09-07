@@ -13,43 +13,9 @@
     #define LED_GREEN_PIN 15
 #endif //LED_GREEN_PIN
 
-#define LED_PINS {LED_WHITE_PIN, LED_YELLOW_PIN, LED_GREEN_PIN}
-#define NUM_OF_LEDS 3
+#ifndef BTN_MUTE_PIN
+    #define BTN_MUTE_PIN 16
+#endif //BTN_MUTE_PIN
 
-#ifndef BTN_SCAN_NEXT_PIN
-    #define BTN_SCAN_NEXT_PIN 16
-#endif //BTN_SCAN_NEXT_PIN
-
-#ifndef BTN_SCAN_PREV_PIN
-    #define BTN_SCAN_PREV_PIN 17
-#endif //BTN_SCAN_PREV_PIN
-
-#ifndef BTN_SCAN_STOP_PIN
-    #define BTN_SCAN_STOP_PIN 18
-#endif //BTN_SCAN_STOP_PIN
-
-#ifndef BTN_SCAN_PAUSE_PIN
-    #define BTN_SCAN_PAUSE_PIN 19
-#endif //BTN_SCAN_PAUSE_PIN
-
-#ifndef BTN_SCAN_MUTE_PIN
-    #define BTN_SCAN_MUTE_PIN 20
-#endif //BTN_SCAN_MUTE_PIN
-
-#ifndef BTN_SCAN_VOL_UP_PIN
-    #define BTN_SCAN_VOL_UP_PIN 21
-#endif //BTN_SCAN_VOL_UP_PIN
-
-#ifndef BTN_SCAN_VOL_DOWN_PIN
-    #define BTN_SCAN_VOL_DOWN_PIN 22
-#endif //BTN_SCAN_VOL_DOWN_PIN
-
-#define BTN_PINS { \
-    BTN_SCAN_NEXT_PIN, BTN_SCAN_PREV_PIN, \
-    BTN_SCAN_STOP_PIN, BTN_SCAN_PAUSE_PIN, \
-    BTN_SCAN_MUTE_PIN, \
-    BTN_SCAN_VOL_UP_PIN, BTN_SCAN_VOL_DOWN_PIN \
-    }
-#define NUM_OF_BUTTONS 7
 
 #endif //BOARD_DEFINES__H
