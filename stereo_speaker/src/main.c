@@ -281,14 +281,14 @@ void hid_task(void)
 void usb_speaker_mute_handler(int8_t bChannelNumber, int8_t mute_in)
 {
   speaker_settings.mute[bChannelNumber] = mute_in;
-  speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
+  speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
   speaker_settings.status_updated = true;
 }
 
 void usb_speaker_volume_handler(int8_t bChannelNumber, int16_t volume_in)
 {
   speaker_settings.volume[bChannelNumber] = volume_in;
-  speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
+  speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
   speaker_settings.status_updated = true;
 }
 

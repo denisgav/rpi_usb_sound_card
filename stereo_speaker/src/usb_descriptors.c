@@ -204,7 +204,7 @@ char const *string_desc_arr[] =
   "Raspberry Pi",                 // 1: Manufacturer
   "Pico Speaker",                 // 2: Product
   NULL,                           // 3: Serials will use unique ID if possible
-  "I2S Speaker",                  // 4: Audio Interface
+  "UAC2 Speaker",                 // 4: Audio Interface
   "Media Control",                // 5: Audio Control
 };
 
