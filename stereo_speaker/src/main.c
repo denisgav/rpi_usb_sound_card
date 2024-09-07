@@ -90,6 +90,8 @@ void display_ssd1306_info();
 void setup_speaker_cfg();
 //---------------------------------------
 
+void setup_led_and_button();
+
 /*------------- MAIN -------------*/
 int main(void)
 {
@@ -98,6 +100,7 @@ int main(void)
   speaker_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
   speaker_settings.status_updated = false;
 
+  setup_led_and_button();
   setup_speaker_cfg();
   setup_ssd1306();
 
@@ -171,6 +174,19 @@ void setup_speaker_cfg(){
 }
 //---------------------------------------
 
+//---------------------------------------
+//           LED and button
+//---------------------------------------
+void setup_led_and_button(){
+  uint16_t led_pins[NUM_OF_LEDS] = LED_PINS;
+  for(uint16_t led_idx=0; led_idx < NUM_OF_LEDS; led_idx++){
+    gpio_init(led_pins[led_idx]);
+    gpio_set_dir(led_pins[led_idx], GPIO_OUT);
+  }
+
+  gpio_put(LED_WHITE_PIN, 0);
+}
+
 //-------------------------
 
 //-------------------------
@@ -181,14 +197,14 @@ void setup_speaker_cfg(){
 void usb_speaker_mute_handler(int8_t bChannelNumber, int8_t mute_in)
 {
   speaker_settings.mute[bChannelNumber] = mute_in;
-  speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
+  speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
   speaker_settings.status_updated = true;
 }
 
 void usb_speaker_volume_handler(int8_t bChannelNumber, int16_t volume_in)
 {
   speaker_settings.volume[bChannelNumber] = volume_in;
-  speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
+  speaker_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(speaker_settings.mute[bChannelNumber], speaker_settings.volume[bChannelNumber]);
   speaker_settings.status_updated = true;
 }
 
@@ -317,13 +333,8 @@ void status_update_task(void){
 
   prev_status_update__ms = cur_time_ms;
 
-  //gpio_put(LED_RED_PIN, speaker_settings.user_mute);
-  //gpio_put(LED_YELLOW_PIN, (speaker_settings.streaming_cntr != 0));
-  //gpio_put(LED_GREEN_PIN, (speaker_settings.blink_interval_ms == BLINK_MOUNTED));
-
-  // if(speaker_settings.streaming_cntr >= 1){
-  //   speaker_settings.streaming_cntr --;
-  // }
+  gpio_put(LED_GREEN_PIN, (speaker_settings.blink_interval_ms == BLINK_MOUNTED));
+  gpio_put(LED_YELLOW_PIN, (speaker_settings.blink_interval_ms == BLINK_STREAMING));
 
   if(speaker_settings.status_updated == true){
     speaker_settings.status_updated = false;
