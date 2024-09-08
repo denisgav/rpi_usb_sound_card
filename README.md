@@ -11,10 +11,10 @@ Capture audio from a microphone on your [Raspberry Pi Pico](https://www.raspberr
    * I2S
      * [inmp441]
    * PDM
-     * [PDM mic] (https://learn.adafruit.com/adafruit-pdm-microphone-breakout/overview)
+     * [PDM mic](https://learn.adafruit.com/adafruit-pdm-microphone-breakout/overview)
  * DAC
-   * [PCM5102A] (http://www.kosmodrom.com.ua/el.php?name=PCM5102A-Modul)
-   * [UDA1334A] (https://learn.adafruit.com/adafruit-i2s-stereo-decoder-uda1334a)
+   * [PCM5102A](http://www.kosmodrom.com.ua/el.php?name=PCM5102A-Modul)
+   * [UDA1334A](https://learn.adafruit.com/adafruit-i2s-stereo-decoder-uda1334a)
  * LCD
    * SSD1306
  * Buttons
@@ -36,9 +36,9 @@ Capture audio from a microphone on your [Raspberry Pi Pico](https://www.raspberr
 ## Examples
 
 See [applications]:
- * stereo_microphone_i2s: ( stereo_microphone_i2s )
- * stereo_microphone_pdm: ( stereo_microphone_pdm )
- * stereo_speaker: ( stereo_speaker )
+ * [stereo_microphone_i2s]( stereo_microphone_i2s )
+ * [stereo_microphone_pdm]( stereo_microphone_pdm )
+ * [stereo_speaker]( stereo_speaker )
 
 
 ## Cloning
@@ -72,3 +72,5 @@ To create this project, following references were used:
  * Microphone library for pico https://github.com/ArmDeveloperEcosystem/microphone-library-for-pico.git 
  * SSD1306 library for pico https://github.com/daschr/pico-ssd1306.git
 ---
+
+
