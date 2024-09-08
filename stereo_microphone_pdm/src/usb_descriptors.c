@@ -131,7 +131,7 @@ char const* string_desc_arr [] = {
     "Raspberry Pi",                     // 1: Manufacturer
     "Pico Microphone",                  // 2: Product
     NULL,                          // 3: Serials will use unique ID if possible
-    "UAC2",                        // 4: Audio Interface
+    "UAC2 Microphone",             // 4: Audio Interface
 };
 
 static uint16_t _desc_str[32 + 1];

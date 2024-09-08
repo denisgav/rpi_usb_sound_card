@@ -9,13 +9,18 @@ Capture audio from a microphone on your [Raspberry Pi Pico](https://www.raspberr
    * [Raspberry Pi Pico](https://www.raspberrypi.org/products/raspberry-pi-pico/)
  * Microphones
    * I2S
-     * inmp441
-     * [Adafruit I2S MEMS Microphone Breakout - SPH0645LM4H] (https://www.adafruit.com/product/3421)
+     * [inmp441]
+   * PDM
+     * [PDM mic] (https://learn.adafruit.com/adafruit-pdm-microphone-breakout/overview)
  * DAC
-   * PCM5102a
-   * 
+   * [PCM5102A] (http://www.kosmodrom.com.ua/el.php?name=PCM5102A-Modul)
+   * [UDA1334A] (https://learn.adafruit.com/adafruit-i2s-stereo-decoder-uda1334a)
+ * LCD
+   * SSD1306
+ * Buttons
+ * LEDs
+ * Resistors 
 
-### Default Pinout
 
 #### INMP441 Microphone
 
@@ -27,21 +32,13 @@ Capture audio from a microphone on your [Raspberry Pi Pico](https://www.raspberr
 | GPIO 15 | SCK |
 | GPIO 16 | WS |
 
-#### PCM5102a DAC
-
-| Raspberry Pi Pico / RP2040 | I2S DAC |
-| --- | --- |
-| 3.3V | VCC |
-| GND | GND |
-| GPIO 2 | SD |
-| GPIO 3 | SCK |
-| GPIO 4 | WS |
-
-GPIO pins are configurable in examples or API.
 
 ## Examples
 
-See [applications](stereo_microphone stereo_speaker) folder.
+See [applications]:
+ * stereo_microphone_i2s: ( stereo_microphone_i2s )
+ * stereo_microphone_pdm: ( stereo_microphone_pdm )
+ * stereo_speaker: ( stereo_speaker )
 
 
 ## Cloning
@@ -73,4 +70,5 @@ To create this project, following references were used:
  * The [TinyUSB](https://github.com/hathach/tinyusb) library.
  * Machine I2S  https://github.com/sfera-labs/arduino-pico-i2s-audio
  * Microphone library for pico https://github.com/ArmDeveloperEcosystem/microphone-library-for-pico.git 
+ * SSD1306 library for pico https://github.com/daschr/pico-ssd1306.git
 ---
