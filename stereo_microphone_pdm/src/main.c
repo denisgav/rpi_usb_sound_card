@@ -45,6 +45,9 @@
 #include "pdm_board_defines.h"
 #include "microphone_settings.h"
 
+// Comment this define to disable volume control
+//#define APPLY_VOLUME_FEATURE
+
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
@@ -311,10 +314,24 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
 
 usb_audio_sample pdm_to_usb_sample_convert(int16_t sample, uint16_t volume_db)
 {
-  int32_t sample_tmp = (uint32_t)(volume_db) * (uint32_t)(sample);
-  sample_tmp = sample_tmp >> 15;
-
-  return sample_tmp;
+  #ifdef APPLY_VOLUME_FEATURE
+    if(microphone_settings.user_mute) 
+      return 0;
+    else
+    {
+      int32_t sample_tmp = (int32_t)(sample) * (int32_t)volume_db;
+      sample_tmp = sample_tmp>>15;
+      return (int16_t)sample_tmp;
+      //return (int16_t)sample;
+    }
+  #else //APPLY_VOLUME_FEATURE
+    if(microphone_settings.user_mute) 
+      return 0;
+    else
+    {
+      return (int16_t)(sample);
+    }
+  #endif //APPLY_VOLUME_FEATURE
 }
 
 //--------------------------------------------------------------------+
