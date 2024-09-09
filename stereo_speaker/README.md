@@ -34,14 +34,14 @@ Speaker rupports several formats:
 | 5 V | VCC | - |
 | -   | 3v3 | - |
 | GND | GND | - |
-| FLT | 9   | I2S_SPK_PCM5102A_FLT |
-| DMP | 10  | I2S_SPK_PCM5102A_DEMP |
+| FLT | GND | - |
+| DMP | GND | - |
 | SCL | GND | - |
-| BCK | 7   | I2S_SPK_SCK |
-| DIN | 6   | I2S_SPK_SD |
-| LCK | 8   | I2S_SPK_WS |
-| FMT | 9   | I2S_SPK_PCM5102A_FMT |
-| XMT | 9   | I2S_SPK_PCM5102A_XSMT |
+| BCK | 15  | I2S_SPK_SCK |
+| DIN | 14  | I2S_SPK_SD |
+| LCK | 16  | I2S_SPK_WS |
+| FMT | GND | - |
+| XMT | 3v3 | - |
 
 
 GPIO pins are configurable in API by updating defines.
@@ -91,7 +91,7 @@ GPIO pins are configurable in API by updating defines.
 #### LED
 | Raspberry Pi Pico / RP2040 | LED color | Define name | 
 | --- | --- | --- |
-| 13 | WHITE  | LED_WHITE_PIN | 
-| 14 | YELLOW | LED_YELLOW_PIN | 
-| 15 | GREEN  | LED_GREEN_PIN | 
+| 10 | WHITE  | LED_WHITE_PIN | 
+| 11 | YELLOW | LED_YELLOW_PIN | 
+| 12 | GREEN  | LED_GREEN_PIN | 
 

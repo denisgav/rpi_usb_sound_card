@@ -2,15 +2,15 @@
 #define BOARD_DEFINES__H
 
 #ifndef LED_WHITE_PIN
-    #define LED_WHITE_PIN 13
+    #define LED_WHITE_PIN 10
 #endif //LED_WHITE_PIN
 
 #ifndef LED_YELLOW_PIN
-    #define LED_YELLOW_PIN 14
+    #define LED_YELLOW_PIN 11
 #endif //LED_YELLOW_PIN
 
 #ifndef LED_GREEN_PIN
-    #define LED_GREEN_PIN 15
+    #define LED_GREEN_PIN 12
 #endif //LED_GREEN_PIN
 
 #define LED_PINS {LED_WHITE_PIN, LED_YELLOW_PIN, LED_GREEN_PIN}

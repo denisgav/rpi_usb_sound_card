@@ -17,5 +17,8 @@
     #define BTN_MUTE_PIN 13
 #endif //BTN_MUTE_PIN
 
+#define LED_PINS {LED_WHITE_PIN, LED_YELLOW_PIN, LED_GREEN_PIN}
+#define NUM_OF_LEDS 3
+
 
 #endif //BOARD_DEFINES__H

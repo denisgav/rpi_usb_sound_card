@@ -84,12 +84,6 @@ void setup_ssd1306();
 void display_ssd1306_info();
 //---------------------------------------
 
-//---------------------------------------
-//           PCM5102A & UDA1334A cfg
-//---------------------------------------
-void setup_speaker_cfg();
-//---------------------------------------
-
 void setup_led_and_button();
 
 /*------------- MAIN -------------*/
@@ -101,7 +95,6 @@ int main(void)
   speaker_settings.status_updated = false;
 
   setup_led_and_button();
-  setup_speaker_cfg();
   setup_ssd1306();
 
   usb_speaker_set_mute_set_handler(usb_speaker_mute_handler);
@@ -149,30 +142,7 @@ void setup_ssd1306(){
   ssd1306_draw_string(&disp, 8, 32, 1, "USB UAC2 speaker");
   ssd1306_show(&disp);
 }
-
-//---------------------------------------
-//           PCM5102A & UDA1334A cfg
-//---------------------------------------
-void setup_speaker_cfg(){
-  gpio_init(I2S_SPK_PCM5102A_FLT);
-  gpio_set_dir(I2S_SPK_PCM5102A_FLT, GPIO_OUT);
-
-  gpio_init(I2S_SPK_PCM5102A_DEMP);
-  gpio_set_dir(I2S_SPK_PCM5102A_DEMP, GPIO_OUT);
-
-  gpio_init(I2S_SPK_PCM5102A_XSMT);
-  gpio_set_dir(I2S_SPK_PCM5102A_XSMT, GPIO_OUT);
-
-  gpio_init(I2S_SPK_PCM5102A_FMT);
-  gpio_set_dir(I2S_SPK_PCM5102A_FMT, GPIO_OUT);
-
-
-  gpio_put(I2S_SPK_PCM5102A_FLT, 0);
-  gpio_put(I2S_SPK_PCM5102A_DEMP, 0);
-  gpio_put(I2S_SPK_PCM5102A_XSMT, 1);
-  gpio_put(I2S_SPK_PCM5102A_FMT, 0);
-}
-//---------------------------------------
+//-------------------------
 
 //---------------------------------------
 //           LED and button
