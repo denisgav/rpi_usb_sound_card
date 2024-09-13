@@ -45,6 +45,8 @@
 #include "pdm_board_defines.h"
 #include "microphone_settings.h"
 
+#include "ws2812/ws2812.h"
+
 // Comment this define to disable volume control
 //#define APPLY_VOLUME_FEATURE
 
@@ -151,10 +153,10 @@ int main(void)
   microphone_settings.resolution = CFG_TUD_AUDIO_FUNC_1_N_RESOLUTION_TX;
   microphone_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
   microphone_settings.status_updated = false;
-  microphone_settings.streaming_cntr = 0;
   microphone_settings.user_mute = false;
 
   setup_led_and_button();
+  ws2812_init();
 
   usb_microphone_set_mute_set_handler(usb_microphone_mute_handler);
   usb_microphone_set_volume_set_handler(usb_microphone_volume_handler);
@@ -183,6 +185,8 @@ int main(void)
     led_blinking_task();
 
     status_update_task();
+
+    ws2812_task(microphone_settings.blink_interval_ms);
   }
 }
 
@@ -193,12 +197,6 @@ int main(void)
 void setup_led_and_button(){
   gpio_init(LED_RED_PIN);
   gpio_set_dir(LED_RED_PIN, GPIO_OUT);
-
-  gpio_init(LED_YELLOW_PIN);
-  gpio_set_dir(LED_YELLOW_PIN, GPIO_OUT);
-
-  gpio_init(LED_GREEN_PIN);
-  gpio_set_dir(LED_GREEN_PIN, GPIO_OUT);
 
   gpio_init(BTN_MUTE_PIN);
   gpio_set_dir(BTN_MUTE_PIN, GPIO_IN);
@@ -309,7 +307,6 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
   for(uint32_t i = 0; i < SAMPLE_BUFFER_SIZE; i++){
     i2s_dummy_buffer[i*2+1] = (i<samples_read) ? pdm_to_usb_sample_convert(sample_buffer_r[i], volume_db_right) : 0;
   }  
-  microphone_settings.streaming_cntr = 5;
 }
 
 usb_audio_sample pdm_to_usb_sample_convert(int16_t sample, uint16_t volume_db)
@@ -367,12 +364,7 @@ void status_update_task(void){
   prev_status_update__ms = cur_time_ms;
 
   gpio_put(LED_RED_PIN, microphone_settings.user_mute);
-  gpio_put(LED_YELLOW_PIN, (microphone_settings.streaming_cntr != 0));
-  gpio_put(LED_GREEN_PIN, (microphone_settings.blink_interval_ms == BLINK_MOUNTED));
 
-  if(microphone_settings.streaming_cntr >= 1){
-    microphone_settings.streaming_cntr --;
-  }
 
   if(microphone_settings.status_updated == true){
     microphone_settings.status_updated = false;

@@ -501,7 +501,16 @@ bool tud_audio_tx_done_post_load_cb(uint8_t rhport, uint16_t n_bytes_copied, uin
 bool tud_audio_set_itf_close_EP_cb(uint8_t rhport, tusb_control_request_t const * p_request)
 {
   (void) rhport;
-  (void) p_request;
+  
+  uint8_t const itf = tu_u16_low(tu_le16toh(p_request->wIndex));
+  uint8_t const alt = tu_u16_low(tu_le16toh(p_request->wValue));
+
+  if (ITF_NUM_AUDIO_STREAMING == itf && alt == 0)
+  {
+    if(usb_microphone_current_status_set_handler){
+      usb_microphone_current_status_set_handler(BLINK_MOUNTED);
+    }
+  }
 
   return true;
 }

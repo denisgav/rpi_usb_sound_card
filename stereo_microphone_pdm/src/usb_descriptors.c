@@ -25,6 +25,8 @@
 
 #include "bsp/board_api.h"
 #include "tusb.h"
+#include "usb_descriptors.h"
+#include "common_types.h"
 
 /* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
  * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
@@ -69,16 +71,6 @@ uint8_t const * tud_descriptor_device_cb(void)
 {
   return (uint8_t const *) &desc_device;
 }
-
-//--------------------------------------------------------------------+
-// Configuration Descriptor
-//--------------------------------------------------------------------+
-enum
-{
-  ITF_NUM_AUDIO_CONTROL = 0,
-  ITF_NUM_AUDIO_STREAMING,
-  ITF_NUM_TOTAL
-};
 
 #define CONFIG_TOTAL_LEN      (TUD_CONFIG_DESC_LEN + CFG_TUD_AUDIO * TUD_AUDIO_MIC_TWO_CH_DESC_LEN)
 

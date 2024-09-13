@@ -24,7 +24,6 @@ typedef struct _microphone_settings_t {
 
   bool user_mute;
   bool status_updated;
-  uint32_t streaming_cntr;
 } microphone_settings_t;
 
 

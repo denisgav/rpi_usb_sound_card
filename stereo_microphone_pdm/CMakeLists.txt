@@ -9,7 +9,7 @@ add_executable(stereo_microphone_pdm
 
 target_include_directories(stereo_microphone_pdm PRIVATE ./inc ${CMAKE_CURRENT_LIST_DIR}/common/inc)
 
-target_link_libraries(stereo_microphone_pdm PRIVATE tinyusb_device tinyusb_board pico_stdlib pico_pdm_microphone pico_volume_ctrl)
+target_link_libraries(stereo_microphone_pdm PRIVATE tinyusb_device tinyusb_board pico_stdlib pico_pdm_microphone pico_volume_ctrl pico_ws2812)
 
 # create map/bin/hex/uf2 file in addition to ELF.
 pico_add_extra_outputs(stereo_microphone_pdm)

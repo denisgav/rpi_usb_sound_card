@@ -104,7 +104,6 @@ int main(void)
   microphone_settings.resolution = CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX;
   microphone_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
   microphone_settings.status_updated = false;
-  microphone_settings.streaming_cntr = 0;
   microphone_settings.user_mute = false;
 
   setup_led_and_button();
@@ -292,7 +291,6 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
       }
     }
   }
-  microphone_settings.streaming_cntr = 5;
 }
 
 int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, int32_t volume_db){
@@ -372,10 +370,6 @@ void status_update_task(void){
 
   gpio_put(LED_RED_PIN, microphone_settings.user_mute);
 
-  if(microphone_settings.streaming_cntr >= 1){
-    microphone_settings.streaming_cntr --;
-  }
-
   if(microphone_settings.status_updated == true){
     microphone_settings.status_updated = false;
     display_ssd1306_info();
@@ -395,13 +389,17 @@ void display_ssd1306_info(){
       ssd1306_draw_string(&disp, 4, 16, 1, "not mounted");
       break;
     }
+    case BLINK_MOUNTED:{
+      ssd1306_draw_string(&disp, 4, 0, 1, "Microphone");
+      ssd1306_draw_string(&disp, 4, 16, 1, "mounted");
+      break;
+    }
     case BLINK_SUSPENDED:{
       ssd1306_draw_string(&disp, 4, 0, 1, "Microphone");
       ssd1306_draw_string(&disp, 4, 16, 1, "suspended");
       break;
     }
-    case BLINK_STREAMING:
-    case BLINK_MOUNTED:{
+    case BLINK_STREAMING:{
       char format_str[20] = "Fmt:";
       char format_tmp_str[20] = "";
 
