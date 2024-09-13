@@ -40,6 +40,8 @@
 
 // Comment this define to disable volume control
 //#define APPLY_VOLUME_FEATURE
+#define FORMAT_24B_TO_24B_SHIFT_VAL 4u
+#define FORMAT_24B_TO_16B_SHIFT_VAL 12u
 
 
 // Pointer to I2S handler
@@ -243,8 +245,8 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
         int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
         for(uint32_t i = 0; i < num_of_frames_read; i++){
           if(microphone_settings.resolution == 24){
-            int32_t left_24b = (int32_t)buffer[i].left;
-            int32_t right_24b = (int32_t)buffer[i].right;
+            int32_t left_24b = (int32_t)buffer[i].left << FORMAT_24B_TO_24B_SHIFT_VAL; // Magic number
+            int32_t right_24b = (int32_t)buffer[i].right << FORMAT_24B_TO_24B_SHIFT_VAL; // Magic number
             left_24b = i2s_to_usb_32b_sample_convert(left_24b, volume_db_left);
             left_24b = i2s_to_usb_32b_sample_convert(left_24b, volume_db_master);
             right_24b = i2s_to_usb_32b_sample_convert(right_24b, volume_db_right);
@@ -254,8 +256,8 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
             i2s_24b_dummy_buffer[i*2+1] = right_24b; // TODO: check this value
           }
           else {
-            int32_t left_16b = (int32_t)buffer[i].left >> 16;
-            int32_t right_16b = (int32_t)buffer[i].right >> 16;
+            int32_t left_16b = (int32_t)buffer[i].left >> FORMAT_24B_TO_16B_SHIFT_VAL; // Magic number
+            int32_t right_16b = (int32_t)buffer[i].right >> FORMAT_24B_TO_16B_SHIFT_VAL; // Magic number
             left_16b = i2s_to_usb_16b_sample_convert(left_16b, volume_db_left);
             left_16b = i2s_to_usb_16b_sample_convert(left_16b, volume_db_master);
             right_16b = i2s_to_usb_16b_sample_convert(right_16b, volume_db_right);
