@@ -37,6 +37,8 @@
 
 #include "ssd1306/ssd1306.h"
 
+#include "ws2812/ws2812.h"
+
 // Pointer to I2S handler
 machine_i2s_obj_t* speaker_i2s0 = NULL;
 
@@ -84,8 +86,6 @@ void setup_ssd1306();
 void display_ssd1306_info();
 //---------------------------------------
 
-void setup_led_and_button();
-
 /*------------- MAIN -------------*/
 int main(void)
 {
@@ -94,8 +94,8 @@ int main(void)
   speaker_settings.blink_interval_ms = BLINK_NOT_MOUNTED;
   speaker_settings.status_updated = false;
 
-  setup_led_and_button();
   setup_ssd1306();
+  ws2812_init();
 
   usb_speaker_set_mute_set_handler(usb_speaker_mute_handler);
   usb_speaker_set_volume_set_handler(usb_speaker_volume_handler);
@@ -121,6 +121,8 @@ int main(void)
     led_blinking_task();
 
     status_update_task();
+
+    ws2812_task(speaker_settings.blink_interval_ms);
   }
 }
 
@@ -143,19 +145,6 @@ void setup_ssd1306(){
   ssd1306_show(&disp);
 }
 //-------------------------
-
-//---------------------------------------
-//           LED and button
-//---------------------------------------
-void setup_led_and_button(){
-  uint16_t led_pins[NUM_OF_LEDS] = LED_PINS;
-  for(uint16_t led_idx=0; led_idx < NUM_OF_LEDS; led_idx++){
-    gpio_init(led_pins[led_idx]);
-    gpio_set_dir(led_pins[led_idx], GPIO_OUT);
-  }
-
-  gpio_put(LED_WHITE_PIN, 0);
-}
 
 //-------------------------
 
@@ -277,8 +266,6 @@ void led_blinking_task(void)
   static uint32_t start_ms = 0;
   static bool led_state = false;
 
-  static uint32_t mic_live_status_update_ms = 0;
-
   uint32_t cur_time_ms = board_millis();
 
   // Blink every interval ms
@@ -302,9 +289,6 @@ void status_update_task(void){
     return;
 
   prev_status_update__ms = cur_time_ms;
-
-  gpio_put(LED_GREEN_PIN, (speaker_settings.blink_interval_ms == BLINK_MOUNTED));
-  gpio_put(LED_YELLOW_PIN, (speaker_settings.blink_interval_ms == BLINK_STREAMING));
 
   if(speaker_settings.status_updated == true){
     speaker_settings.status_updated = false;

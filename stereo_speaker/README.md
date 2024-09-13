@@ -66,9 +66,9 @@ GPIO pins are configurable in API by updating defines.
 | 5 V  | Vin | - | 
 | -    | 3v0 | - | 
 | GND  | GND | - | 
-| WSEL | 8 | I2S_SPK_WS |
-| DIN  | 6 | I2S_SPK_SD |
-| BCLK | 7 | I2S_SPK_SCK|
+| WSEL | 16 | I2S_SPK_WS |
+| DIN  | 14 | I2S_SPK_SD |
+| BCLK | 15 | I2S_SPK_SCK|
 | SCLK | - | - |
 | SF1  | - | - |
 | MUTE | - | - |

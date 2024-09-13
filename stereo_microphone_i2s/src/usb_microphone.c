@@ -1,4 +1,5 @@
 #include "usb_microphone.h"
+#include "common_types.h"
 #include "i2s_board_defines.h"
 #include "volume_ctrl.h"
 
@@ -155,8 +156,16 @@ void tud_resume_cb(void)
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_request)
 {
   (void)rhport;
-  //uint8_t const itf = tu_u16_low(tu_le16toh(p_request->wIndex));
+  uint8_t const itf = tu_u16_low(tu_le16toh(p_request->wIndex));
   uint8_t const alt = tu_u16_low(tu_le16toh(p_request->wValue));
+
+  TU_LOG2("Set interface %d alt %d\r\n", itf, alt);
+  if (ITF_NUM_AUDIO_STREAMING == itf && alt != 0)
+  {
+    if(usb_microphone_current_status_set_handler){
+      usb_microphone_current_status_set_handler(BLINK_STREAMING);
+    }
+  }
 
   // Clear buffer when streaming format is changed
   if(alt != 0)
