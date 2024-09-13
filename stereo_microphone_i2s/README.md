@@ -12,6 +12,8 @@ Microphone rupports several formats:
    * SSD1306
  * Buttons
  * LEDs
+   * Red
+   * WS2812 
  * Resistors 
 
 ### Default Pinout
@@ -43,8 +45,7 @@ GPIO pins are configurable in API by updating defines.
 | Raspberry Pi Pico / RP2040 | LED color | Define name | 
 | --- | --- | --- |
 | 10 | RED  | LED_RED_PIN | 
-| 11 | YELLOW | LED_YELLOW_PIN | 
-| 12 | GREEN  | LED_GREEN_PIN | 
+| 23 | WS2812  | WS2812_PIN | 
 
 #### BUTTON
 | Raspberry Pi Pico / RP2040 | Button name | Define name | 
