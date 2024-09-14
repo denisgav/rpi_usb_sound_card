@@ -1,7 +1,7 @@
 # USB stereo microphone
 Microphone rupports several formats:
-  * 24 / 16 bit samples
-  * 16000 / 32000 / 48000 Hz sample rates
+  * 16 bit samples
+  * 16000 Hz sample rates
 
 ## Hardware
  * RP2040 board
@@ -42,8 +42,7 @@ GPIO pins are configurable in API by updating defines.
 | Raspberry Pi Pico / RP2040 | LED color | Define name | 
 | --- | --- | --- |
 | 10 | RED  | LED_RED_PIN | 
-| 11 | YELLOW | LED_YELLOW_PIN | 
-| 12 | GREEN  | LED_GREEN_PIN | 
+| 23	| WS2812 |	WS2812_PIN |
 
 #### BUTTON
 | Raspberry Pi Pico / RP2040 | Button name | Define name | 
