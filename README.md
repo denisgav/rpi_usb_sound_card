@@ -19,19 +19,8 @@ Capture audio from a microphone on your [Raspberry Pi Pico](https://www.raspberr
    * SSD1306
  * Buttons
  * LEDs
+   * WS2812
  * Resistors 
-
-
-#### INMP441 Microphone
-
-| Raspberry Pi Pico / RP2040 | I2S Microphone |
-| --- | --- |
-| 3.3V | VCC |
-| GND | GND |
-| GPIO 14 | SD |
-| GPIO 15 | SCK |
-| GPIO 16 | WS |
-
 
 ## Examples
 
