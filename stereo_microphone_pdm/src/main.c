@@ -175,7 +175,7 @@ int main(void)
   {
     microphone_settings.volume[i] = DEFAULT_VOLUME;
     microphone_settings.mute[i] = 0;
-    microphone_settings.volume_db[i] = vol_to_db_convert(microphone_settings.mute[i], microphone_settings.volume[i]);
+    microphone_settings.volume_db[i] = vol_to_db_convert_enc(microphone_settings.mute[i], microphone_settings.volume[i]);
   }
 
   while (1)
@@ -213,14 +213,14 @@ void setup_led_and_button(){
 void usb_microphone_mute_handler(int8_t bChannelNumber, int8_t mute_in)
 {
   microphone_settings.mute[bChannelNumber] = mute_in;
-  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
+  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
   microphone_settings.status_updated = true;
 }
 
 void usb_microphone_volume_handler(int8_t bChannelNumber, int16_t volume_in)
 {
   microphone_settings.volume[bChannelNumber] = volume_in;
-  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
+  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
   microphone_settings.status_updated = true;
 }
 

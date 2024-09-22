@@ -93,7 +93,7 @@ uint8_t const desc_configuration[] =
   TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
 
   // Interface number, string index, EP Out & EP In address, EP size
-    TUD_AUDIO_MIC_2_CH_2_FORMAT_DESCRIPTOR(/*_itfnum*/ ITF_NUM_AUDIO_CONTROL, /*_stridx*/ 0, /*_epin*/ 0x80 | EPNUM_AUDIO)
+    TUD_AUDIO_MIC_2_CH_2_FORMAT_DESCRIPTOR(/*_stridx*/ 0, /*_epin*/ 0x80 | EPNUM_AUDIO)
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR

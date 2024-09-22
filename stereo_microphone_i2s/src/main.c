@@ -39,7 +39,7 @@
 #include "ws2812/ws2812.h"
 
 // Comment this define to disable volume control
-//#define APPLY_VOLUME_FEATURE
+#define APPLY_VOLUME_FEATURE
 #define FORMAT_24B_TO_24B_SHIFT_VAL 4u
 #define FORMAT_24B_TO_16B_SHIFT_VAL 12u
 
@@ -96,8 +96,8 @@ void setup_led_and_button();
 void button_mute_ISR(uint gpio, uint32_t events);
 //---------------------------------------
 
-int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, uint16_t volume_db);
-int16_t i2s_to_usb_16b_sample_convert(uint16_t sample, uint16_t volume_db);
+int32_t i2s_to_usb_32b_sample_convert(int32_t sample, uint16_t volume_db);
+int16_t i2s_to_usb_16b_sample_convert(int16_t sample, uint16_t volume_db);
 
 /*------------- MAIN -------------*/
 int main(void)
@@ -128,7 +128,7 @@ int main(void)
   {
     microphone_settings.volume[i] = DEFAULT_VOLUME;
     microphone_settings.mute[i] = 0;
-    microphone_settings.volume_db[i] = vol_to_db_convert(microphone_settings.mute[i], microphone_settings.volume[i]);
+    microphone_settings.volume_db[i] = vol_to_db_convert_enc(microphone_settings.mute[i], microphone_settings.volume[i]);
   }
 
   while (1)
@@ -186,14 +186,14 @@ void setup_led_and_button(){
 void usb_microphone_mute_handler(int8_t bChannelNumber, int8_t mute_in)
 {
   microphone_settings.mute[bChannelNumber] = mute_in;
-  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
+  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
   microphone_settings.status_updated = true;
 }
 
 void usb_microphone_volume_handler(int8_t bChannelNumber, int16_t volume_in)
 {
   microphone_settings.volume[bChannelNumber] = volume_in;
-  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
+  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
   microphone_settings.status_updated = true;
 }
 
@@ -295,7 +295,7 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
   }
 }
 
-int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, uint16_t volume_db){
+int32_t i2s_to_usb_32b_sample_convert(int32_t sample, uint16_t volume_db){
   #ifdef APPLY_VOLUME_FEATURE
     if(microphone_settings.user_mute) 
       return 0;
@@ -316,7 +316,7 @@ int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, uint16_t volume_db){
   #endif //APPLY_VOLUME_FEATURE
 }
 
-int16_t i2s_to_usb_16b_sample_convert(uint16_t sample, uint16_t volume_db){
+int16_t i2s_to_usb_16b_sample_convert(int16_t sample, uint16_t volume_db){
   #ifdef APPLY_VOLUME_FEATURE
     if(microphone_settings.user_mute) 
       return 0;
@@ -416,15 +416,15 @@ void display_ssd1306_info(){
       char vol_str[20] = "Vol M:";
       char vol_tmp_str[20] = "";
 
-      itoa(microphone_settings.volume[0], vol_tmp_str, 10);
+      itoa(microphone_settings.volume[0]>>ENC_NUM_OF_FP_BITS, vol_tmp_str, 10);
       strcat(vol_str, vol_tmp_str);
 
       strcat(vol_str, " L:");
-      itoa(microphone_settings.volume[1], vol_tmp_str, 10);
+      itoa(microphone_settings.volume[1]>>ENC_NUM_OF_FP_BITS, vol_tmp_str, 10);
       strcat(vol_str, vol_tmp_str);
 
       strcat(vol_str, " R:");
-      itoa(microphone_settings.volume[2], vol_tmp_str, 10);
+      itoa(microphone_settings.volume[2]>>ENC_NUM_OF_FP_BITS, vol_tmp_str, 10);
       strcat(vol_str, vol_tmp_str);
 
       char mute_str[20] = "Mute M:";
@@ -437,8 +437,8 @@ void display_ssd1306_info(){
       strcat(mute_str, (microphone_settings.mute[2] ? "T" : "F"));
 
       ssd1306_draw_string(&disp, 4, 0, 1, format_str);
-      ssd1306_draw_string(&disp, 4, 12, 1, vol_str);
-      ssd1306_draw_string(&disp, 4, 24, 1, mute_str);
+      ssd1306_draw_string(&disp, 4, 8, 1, vol_str);
+      ssd1306_draw_string(&disp, 4, 16, 1, mute_str);
     }
   } 
   

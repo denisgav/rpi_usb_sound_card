@@ -237,6 +237,7 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_1_t));
 
         mute[channelNum] = ((audio_control_cur_1_t*) pBuff)->bCur;
+
         if(usb_microphone_mute_set_handler)
         {
           usb_microphone_mute_set_handler(channelNum, mute[channelNum]);
@@ -249,11 +250,12 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         // Request uses format layout 2
         TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_2_t));
 
+        volume[channelNum] = (uint16_t) ((audio_control_cur_2_t*) pBuff)->bCur;
+
         if(usb_microphone_volume_set_handler)
         {
           usb_microphone_volume_set_handler(channelNum, volume[channelNum]);
         }
-        volume[channelNum] = (uint16_t) ((audio_control_cur_2_t*) pBuff)->bCur;
 
         TU_LOG2("    Set Volume: %d dB of channel: %u\r\n", volume[channelNum], channelNum);
       return true;
@@ -274,6 +276,7 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_4_t));
 
         sampFreq = (uint32_t)((audio_control_cur_4_t *)pBuff)->bCur;
+
         if(usb_microphone_current_sample_rate_set_handler){
           usb_microphone_current_sample_rate_set_handler(sampFreq);
         }
@@ -386,14 +389,14 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
             TU_LOG2("    Get Volume range of channel: %u\r\n", channelNum);
 
             // Copy values - only for testing - better is version below
-            audio_control_range_2_n_t(1) ret;
-
-            ret.wNumSubRanges = 1;
-            ret.subrange[0].bMin = MIN_VOLUME;    // -90 dB
-            ret.subrange[0].bMax = MAX_VOLUME;    // +90 dB
-            ret.subrange[0].bRes = VOLUME_RESOLUTION;     // 1 dB steps
-
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, (void*) &ret, sizeof(ret));
+            audio_control_range_2_n_t(1) range_vol = {
+              .wNumSubRanges = tu_htole16(1),
+              .subrange[0] = { 
+                .bMin = tu_htole16(MIN_VOLUME_ENC), 
+                .bMax = tu_htole16(MAX_VOLUME_ENC), 
+                .bRes = tu_htole16(VOLUME_RESOLUTION_ENC) }
+            };
+            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, (void*) &range_vol, sizeof(range_vol));
 
             // Unknown/Unsupported control
           default:

@@ -11,7 +11,6 @@
 // Current states
 bool mute[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1];                  // +1 for master channel 0
 uint16_t volume[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1];          // +1 for master channel 0
-uint32_t sampFreq;
 uint8_t bytesPerSample;
 uint8_t clkValid;
 
@@ -22,7 +21,9 @@ static const uint32_t sampleRatesList[] =
     16000, 32000, 48000
 };
 
-#define N_sampleRates  TU_ARRAY_SIZE(sampleRatesList)
+uint32_t current_sample_rate  = 48000;
+
+#define N_SAMPLE_RATES  TU_ARRAY_SIZE(sampleRatesList)
 
 // Bytes per format of every Alt settings
 static const uint8_t bytesPerSampleAltList[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] =
@@ -34,6 +35,23 @@ static const uint8_t bytesPerSampleAltList[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] =
 // Resolution per format
 const uint8_t resolutions_per_format[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] = {CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX,
                                                                         CFG_TUD_AUDIO_FUNC_1_FORMAT_2_RESOLUTION_RX};
+
+
+enum
+{
+  VOLUME_CTRL_0_DB = 0,
+  VOLUME_CTRL_10_DB = 2560,
+  VOLUME_CTRL_20_DB = 5120,
+  VOLUME_CTRL_30_DB = 7680,
+  VOLUME_CTRL_40_DB = 10240,
+  VOLUME_CTRL_50_DB = 12800,
+  VOLUME_CTRL_60_DB = 15360,
+  VOLUME_CTRL_70_DB = 17920,
+  VOLUME_CTRL_80_DB = 20480,
+  VOLUME_CTRL_90_DB = 23040,
+  VOLUME_CTRL_100_DB = 25600,
+  VOLUME_CTRL_SILENCE = 0x8000,
+};
 
 //----------------------------------------
 // Functions declared in the header:
@@ -50,7 +68,7 @@ void usb_microphone_init()
   }
 
   // Init values
-  sampFreq = I2S_MIC_RATE_DEF;
+  current_sample_rate = I2S_MIC_RATE_DEF;
   clkValid = 1;
 
   for(int i=0; i<(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1); i++)
@@ -158,7 +176,7 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
   uint8_t const alt = tu_u16_low(tu_le16toh(p_request->wValue));
 
   TU_LOG2("Set interface %d alt %d\r\n", itf, alt);
-  if (ITF_NUM_AUDIO_STREAMING == itf && alt != 0)
+  if (ITF_NUM_AUDIO_STREAMING_MIC == itf && alt != 0)
   {
     if(usb_microphone_current_status_set_handler){
       usb_microphone_current_status_set_handler(BLINK_STREAMING);
@@ -230,8 +248,10 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
   // We do not support any set range requests here, only current value requests
   TU_VERIFY(p_request->bRequest == AUDIO_CS_REQ_CUR);
 
+  audio_control_request_t const *request = (audio_control_request_t const *)p_request;
+
   // If request is for our feature unit
-  if ( entityID == UAC2_ENTITY_FEATURE_UNIT )
+  if ( entityID == UAC2_ENTITY_MIC_FEATURE_UNIT )
   {
     switch ( ctrlSel )
     {
@@ -239,26 +259,30 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         // Request uses format layout 1
         TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_1_t));
 
-        mute[channelNum] = ((audio_control_cur_1_t*) pBuff)->bCur;
+        mute[request->bChannelNumber] = ((audio_control_cur_1_t const *)pBuff)->bCur;
+
         if(usb_microphone_mute_set_handler)
         {
-          usb_microphone_mute_set_handler(channelNum, mute[channelNum]);
+          usb_microphone_mute_set_handler(request->bChannelNumber, mute[request->bChannelNumber]);
         }
 
-        TU_LOG2("    Set Mute: %d of channel: %u\r\n", mute[channelNum], channelNum);
+        TU_LOG2("    Set Mute: %d of channel: %u\r\n", mute[request->bChannelNumber], request->bChannelNumber);
       return true;
 
       case AUDIO_FU_CTRL_VOLUME:
-        // Request uses format layout 2
+        
         TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_2_t));
+
+        TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_2_t));
+        volume[request->bChannelNumber] = ((audio_control_cur_2_t const *)pBuff)->bCur;
 
         if(usb_microphone_volume_set_handler)
         {
-          usb_microphone_volume_set_handler(channelNum, volume[channelNum]);
+          usb_microphone_volume_set_handler(request->bChannelNumber, volume[request->bChannelNumber]);
         }
-        volume[channelNum] = (uint16_t) ((audio_control_cur_2_t*) pBuff)->bCur;
 
-        TU_LOG2("    Set Volume: %d dB of channel: %u\r\n", volume[channelNum], channelNum);
+        TU_LOG1("Set channel %d volume: %d dB\r\n", request->bChannelNumber, volume[request->bChannelNumber] / 256);
+
       return true;
 
         // Unknown/Unsupported control
@@ -276,12 +300,13 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
       case AUDIO_CS_CTRL_SAM_FREQ:
         TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_4_t));
 
-        sampFreq = (uint32_t)((audio_control_cur_4_t *)pBuff)->bCur;
+        current_sample_rate = (uint32_t)((audio_control_cur_4_t *)pBuff)->bCur;
+        
         if(usb_microphone_current_sample_rate_set_handler){
-          usb_microphone_current_sample_rate_set_handler(sampFreq);
+          usb_microphone_current_sample_rate_set_handler(current_sample_rate);
         }
 
-        TU_LOG2("Clock set current freq: %" PRIu32 "\r\n", sampFreq);
+        TU_LOG2("Clock set current freq: %" PRIu32 "\r\n", current_sample_rate);
 
         return true;
       break;
@@ -339,8 +364,10 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
   // uint8_t itf = TU_U16_LOW(p_request->wIndex);       // Since we have only one audio function implemented, we do not need the itf value
   uint8_t entityID = TU_U16_HIGH(p_request->wIndex);
 
+  audio_control_request_t const *request = (audio_control_request_t const *)p_request;
+
   // Input terminal (Microphone input)
-  if (entityID == UAC2_ENTITY_INPUT_TERMINAL)
+  if (entityID == UAC2_ENTITY_MIC_INPUT_TERMINAL)
   {
     switch ( ctrlSel )
     {
@@ -368,7 +395,7 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
   }
 
   // Feature unit
-  if (entityID == UAC2_ENTITY_FEATURE_UNIT)
+  if (entityID == UAC2_ENTITY_MIC_FEATURE_UNIT)
   {
     switch ( ctrlSel )
     {
@@ -376,27 +403,32 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         // Audio control mute cur parameter block consists of only one byte - we thus can send it right away
         // There does not exist a range parameter block for mute
         TU_LOG2("    Get Mute of channel: %u\r\n", channelNum);
-        return tud_control_xfer(rhport, p_request, &mute[channelNum], 1);
+        audio_control_cur_1_t mute1 = { .bCur = mute[request->bChannelNumber] };
+        return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &mute1, sizeof(mute1));
 
       case AUDIO_FU_CTRL_VOLUME:
         switch ( p_request->bRequest )
         {
           case AUDIO_CS_REQ_CUR:
             TU_LOG2("    Get Volume of channel: %u\r\n", channelNum);
-            return tud_control_xfer(rhport, p_request, &volume[channelNum], sizeof(volume[channelNum]));
+            audio_control_cur_2_t cur_vol = { .bCur = tu_htole16(volume[request->bChannelNumber]) };
+            return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &cur_vol, sizeof(cur_vol));
 
           case AUDIO_CS_REQ_RANGE:
             TU_LOG2("    Get Volume range of channel: %u\r\n", channelNum);
-
             // Copy values - only for testing - better is version below
-            audio_control_range_2_n_t(1) ret;
 
-            ret.wNumSubRanges = 1;
-            ret.subrange[0].bMin = MIN_VOLUME;    // -90 dB
-            ret.subrange[0].bMax = MAX_VOLUME;    // +90 dB
-            ret.subrange[0].bRes = VOLUME_RESOLUTION;     // 1 dB steps
+            TU_LOG1("Get channel %u volume range (%d, %d, %u) dB\r\n", request->bChannelNumber,
+                      range_vol.subrange[0].bMin / 256, range_vol.subrange[0].bMax / 256, range_vol.subrange[0].bRes / 256);
 
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, (void*) &ret, sizeof(ret));
+            audio_control_range_2_n_t(1) range_vol = {
+                .wNumSubRanges = (1),
+                .subrange[0] = { 
+                  .bMin = tu_htole16(MIN_VOLUME_ENC), 
+                  .bMax = tu_htole16(MAX_VOLUME_ENC), 
+                  .bRes = tu_htole16(VOLUME_RESOLUTION_ENC) }
+              };
+              return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &range_vol, sizeof(range_vol));
 
             // Unknown/Unsupported control
           default:
@@ -423,17 +455,17 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         {
           case AUDIO_CS_REQ_CUR:
             TU_LOG2("    Get Sample Freq.\r\n");
-            return tud_control_xfer(rhport, p_request, &sampFreq, sizeof(sampFreq));
+            return tud_control_xfer(rhport, p_request, &current_sample_rate, sizeof(current_sample_rate));
 
           case AUDIO_CS_REQ_RANGE:
           {
             TU_LOG2("    Get Sample Freq. range\r\n");
-            audio_control_range_4_n_t(N_sampleRates) rangef =
+            audio_control_range_4_n_t(N_SAMPLE_RATES) rangef =
             {
-                .wNumSubRanges = tu_htole16(N_sampleRates)
+                .wNumSubRanges = tu_htole16(N_SAMPLE_RATES)
             };
-            TU_LOG1("Clock get %d freq ranges\r\n", N_sampleRates);
-            for(uint8_t i = 0; i < N_sampleRates; i++)
+            TU_LOG1("Clock get %d freq ranges\r\n", N_SAMPLE_RATES);
+            for(uint8_t i = 0; i < N_SAMPLE_RATES; i++)
             {
                 rangef.subrange[i].bMin = (int32_t)sampleRatesList[i];
                 rangef.subrange[i].bMax = (int32_t)sampleRatesList[i];
@@ -503,7 +535,7 @@ bool tud_audio_set_itf_close_EP_cb(uint8_t rhport, tusb_control_request_t const 
   uint8_t const itf = tu_u16_low(tu_le16toh(p_request->wIndex));
   uint8_t const alt = tu_u16_low(tu_le16toh(p_request->wValue));
 
-  if (ITF_NUM_AUDIO_STREAMING == itf && alt == 0)
+  if (ITF_NUM_AUDIO_STREAMING_MIC == itf && alt == 0)
   {
     if(usb_microphone_current_status_set_handler){
       usb_microphone_current_status_set_handler(BLINK_MOUNTED);
