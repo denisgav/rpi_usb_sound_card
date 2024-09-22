@@ -53,9 +53,9 @@ int32_t spk_buf[CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ / 4];
 void led_blinking_task(void);
 void status_update_task(void);
 
-int32_t usb_to_i2s_32b_sample_convert(int32_t sample, int32_t volume_db);
+int32_t usb_to_i2s_32b_sample_convert(int32_t sample, uint16_t volume_db);
 
-int16_t usb_to_i2s_16b_sample_convert(int16_t sample, int32_t volume_db);
+int16_t usb_to_i2s_16b_sample_convert(int16_t sample, uint16_t volume_db);
 
 void refresh_i2s_connections()
 {
@@ -189,9 +189,9 @@ void usb_speaker_current_status_set_handler(uint32_t blink_interval_ms_in)
 
 void usb_speaker_tud_audio_rx_done_pre_read_handler(uint8_t rhport, uint16_t n_bytes_received, uint8_t func_id, uint8_t ep_out, uint8_t cur_alt_setting)
 {
-  uint32_t volume_db_master = speaker_settings.volume_db[0];
-  uint32_t volume_db_left = speaker_settings.volume_db[1];
-  uint32_t volume_db_right = speaker_settings.volume_db[2];
+  uint16_t volume_db_master = speaker_settings.volume_db[0];
+  uint16_t volume_db_left = speaker_settings.volume_db[1];
+  uint16_t volume_db_right = speaker_settings.volume_db[2];
 
   if(speaker_i2s0 && (speaker_settings.blink_interval_ms == BLINK_STREAMING)){
     // Speaker data size received in the last frame
@@ -242,7 +242,7 @@ void usb_speaker_tud_audio_rx_done_pre_read_handler(uint8_t rhport, uint16_t n_b
 }
 
 
-int32_t usb_to_i2s_32b_sample_convert(int32_t sample, int32_t volume_db)
+int32_t usb_to_i2s_32b_sample_convert(int32_t sample, uint16_t volume_db)
 {
   int64_t sample_tmp = (int64_t)sample * (int64_t)volume_db;
   sample_tmp = sample_tmp>>15;
@@ -250,7 +250,7 @@ int32_t usb_to_i2s_32b_sample_convert(int32_t sample, int32_t volume_db)
   //return (int32_t)sample;
 }
 
-int16_t usb_to_i2s_16b_sample_convert(int16_t sample, int32_t volume_db)
+int16_t usb_to_i2s_16b_sample_convert(int16_t sample, uint16_t volume_db)
 {
   int32_t sample_tmp = (int32_t)sample * (int32_t)volume_db;
   sample_tmp = sample_tmp>>15;

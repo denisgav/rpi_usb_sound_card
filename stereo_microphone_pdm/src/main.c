@@ -292,9 +292,9 @@ void on_usb_microphone_tx_pre_load(uint8_t rhport, uint8_t itf, uint8_t ep_in, u
 
 void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting)
 {
-  uint32_t volume_db_master = microphone_settings.volume_db[0];
-  uint32_t volume_db_left = microphone_settings.volume_db[1];
-  uint32_t volume_db_right = microphone_settings.volume_db[2];
+  uint16_t volume_db_master = microphone_settings.volume_db[0];
+  uint16_t volume_db_left = microphone_settings.volume_db[1];
+  uint16_t volume_db_right = microphone_settings.volume_db[2];
 
   // reading left microphone
   int samples_read = pdm_microphone_read(pdm_mic_l, sample_buffer_l, SAMPLE_BUFFER_SIZE);

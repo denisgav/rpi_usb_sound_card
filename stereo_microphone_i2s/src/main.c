@@ -96,8 +96,8 @@ void setup_led_and_button();
 void button_mute_ISR(uint gpio, uint32_t events);
 //---------------------------------------
 
-int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, int32_t volume_db);
-int16_t i2s_to_usb_16b_sample_convert(uint16_t sample, int32_t volume_db);
+int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, uint16_t volume_db);
+int16_t i2s_to_usb_16b_sample_convert(uint16_t sample, uint16_t volume_db);
 
 /*------------- MAIN -------------*/
 int main(void)
@@ -238,9 +238,9 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
     int num_bytes_read = machine_i2s_read_stream(i2s0, (void*)&buffer[0], buffer_size_read);
 
     if(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX == 2){
-      uint32_t volume_db_master = microphone_settings.volume_db[0];
-      uint32_t volume_db_left = microphone_settings.volume_db[1];
-      uint32_t volume_db_right = microphone_settings.volume_db[2];
+      uint16_t volume_db_master = microphone_settings.volume_db[0];
+      uint16_t volume_db_left = microphone_settings.volume_db[1];
+      uint16_t volume_db_right = microphone_settings.volume_db[2];
       if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
         int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
         for(uint32_t i = 0; i < num_of_frames_read; i++){
@@ -270,8 +270,8 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
       }
     }
     else{ //CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX is 1
-      uint32_t volume_db_master = microphone_settings.volume_db[0];
-      uint32_t volume_db_mono = microphone_settings.volume_db[1];
+      uint16_t volume_db_master = microphone_settings.volume_db[0];
+      uint16_t volume_db_mono = microphone_settings.volume_db[1];
       if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
         int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
         for(uint32_t i = 0; i < num_of_frames_read; i++){
@@ -295,7 +295,7 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
   }
 }
 
-int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, int32_t volume_db){
+int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, uint16_t volume_db){
   #ifdef APPLY_VOLUME_FEATURE
     if(microphone_settings.user_mute) 
       return 0;
@@ -316,7 +316,7 @@ int32_t i2s_to_usb_32b_sample_convert(uint32_t sample, int32_t volume_db){
   #endif //APPLY_VOLUME_FEATURE
 }
 
-int16_t i2s_to_usb_16b_sample_convert(uint16_t sample, int32_t volume_db){
+int16_t i2s_to_usb_16b_sample_convert(uint16_t sample, uint16_t volume_db){
   #ifdef APPLY_VOLUME_FEATURE
     if(microphone_settings.user_mute) 
       return 0;
