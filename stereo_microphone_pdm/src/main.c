@@ -48,7 +48,7 @@
 #include "ws2812/ws2812.h"
 
 // Comment this define to disable volume control
-//#define APPLY_VOLUME_FEATURE
+#define APPLY_VOLUME_FEATURE
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
