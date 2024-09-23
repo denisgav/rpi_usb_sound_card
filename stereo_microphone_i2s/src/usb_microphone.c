@@ -36,23 +36,6 @@ static const uint8_t bytesPerSampleAltList[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] =
 const uint8_t resolutions_per_format[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] = {CFG_TUD_AUDIO_FUNC_1_FORMAT_1_RESOLUTION_RX,
                                                                         CFG_TUD_AUDIO_FUNC_1_FORMAT_2_RESOLUTION_RX};
 
-
-enum
-{
-  VOLUME_CTRL_0_DB = 0,
-  VOLUME_CTRL_10_DB = 2560,
-  VOLUME_CTRL_20_DB = 5120,
-  VOLUME_CTRL_30_DB = 7680,
-  VOLUME_CTRL_40_DB = 10240,
-  VOLUME_CTRL_50_DB = 12800,
-  VOLUME_CTRL_60_DB = 15360,
-  VOLUME_CTRL_70_DB = 17920,
-  VOLUME_CTRL_80_DB = 20480,
-  VOLUME_CTRL_90_DB = 23040,
-  VOLUME_CTRL_100_DB = 25600,
-  VOLUME_CTRL_SILENCE = 0x8000,
-};
-
 //----------------------------------------
 // Functions declared in the header:
 //----------------------------------------
@@ -71,10 +54,10 @@ void usb_microphone_init()
   current_sample_rate = I2S_MIC_RATE_DEF;
   clkValid = 1;
 
-  for(int i=0; i<(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1); i++)
+  for(int ch_idx=0; ch_idx<(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX + 1); ch_idx++)
   {
-    volume[i] = DEFAULT_VOLUME;
-    mute[i] = 0;
+    mute[ch_idx] = 0;
+    volume[ch_idx] = DEFAULT_VOLUME;
   }
 }
 
@@ -257,7 +240,7 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
     {
       case AUDIO_FU_CTRL_MUTE:
         // Request uses format layout 1
-        TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_1_t));
+        TU_ASSERT(p_request->wLength == sizeof(audio_control_cur_1_t));
 
         mute[request->bChannelNumber] = ((audio_control_cur_1_t const *)pBuff)->bCur;
 
@@ -270,10 +253,9 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
       return true;
 
       case AUDIO_FU_CTRL_VOLUME:
-        
-        TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_2_t));
+        // Request uses format layout 2
+        TU_ASSERT(p_request->wLength == sizeof(audio_control_cur_2_t));
 
-        TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_2_t));
         volume[request->bChannelNumber] = ((audio_control_cur_2_t const *)pBuff)->bCur;
 
         if(usb_microphone_volume_set_handler)
@@ -424,9 +406,9 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
             audio_control_range_2_n_t(1) range_vol = {
                 .wNumSubRanges = (1),
                 .subrange[0] = { 
-                  .bMin = tu_htole16(MIN_VOLUME_ENC), 
-                  .bMax = tu_htole16(MAX_VOLUME_ENC), 
-                  .bRes = tu_htole16(VOLUME_RESOLUTION_ENC) }
+                  .bMin = tu_htole16(0x8001), 
+                  .bMax = tu_htole16(0x7FFF), 
+                  .bRes = tu_htole16(0x0001) }
               };
               return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &range_vol, sizeof(range_vol));
 

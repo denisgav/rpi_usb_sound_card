@@ -7,6 +7,9 @@
 
 #include "microphone_settings.h"
 
+// Comment this define to disable volume control
+#define APPLY_VOLUME_FEATURE
+
 typedef int32_t usb_audio_4b_sample;
 typedef int16_t usb_audio_2b_sample;
 

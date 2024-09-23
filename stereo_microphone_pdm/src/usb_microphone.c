@@ -21,7 +21,7 @@ static const uint32_t sampleRatesList[] =
     AUDIO_SAMPLE_RATE
 };
 
-#define N_sampleRates  TU_ARRAY_SIZE(sampleRatesList)
+#define N_SAMPLE_RATES  TU_ARRAY_SIZE(sampleRatesList)
 
 // Bytes per format of every Alt settings
 static const uint8_t bytesPerSampleAltList[CFG_TUD_AUDIO_FUNC_1_N_FORMATS] = {CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_TX};
@@ -227,6 +227,8 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
   // We do not support any set range requests here, only current value requests
   TU_VERIFY(p_request->bRequest == AUDIO_CS_REQ_CUR);
 
+  audio_control_request_t const *request = (audio_control_request_t const *)p_request;
+
   // If request is for our feature unit
   if ( entityID == UAC2_ENTITY_FEATURE_UNIT )
   {
@@ -234,30 +236,31 @@ bool tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
     {
       case AUDIO_FU_CTRL_MUTE:
         // Request uses format layout 1
-        TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_1_t));
+        TU_ASSERT(p_request->wLength == sizeof(audio_control_cur_1_t));
 
-        mute[channelNum] = ((audio_control_cur_1_t*) pBuff)->bCur;
+        mute[request->bChannelNumber] = ((audio_control_cur_1_t const *)pBuff)->bCur;
 
         if(usb_microphone_mute_set_handler)
         {
-          usb_microphone_mute_set_handler(channelNum, mute[channelNum]);
+          usb_microphone_mute_set_handler(request->bChannelNumber, mute[request->bChannelNumber]);
         }
 
-        TU_LOG2("    Set Mute: %d of channel: %u\r\n", mute[channelNum], channelNum);
+        TU_LOG2("    Set Mute: %d of channel: %u\r\n", mute[request->bChannelNumber], request->bChannelNumber);
       return true;
 
       case AUDIO_FU_CTRL_VOLUME:
         // Request uses format layout 2
-        TU_VERIFY(p_request->wLength == sizeof(audio_control_cur_2_t));
+        TU_ASSERT(p_request->wLength == sizeof(audio_control_cur_2_t));
 
-        volume[channelNum] = (uint16_t) ((audio_control_cur_2_t*) pBuff)->bCur;
+        volume[request->bChannelNumber] = ((audio_control_cur_2_t const *)pBuff)->bCur;
 
         if(usb_microphone_volume_set_handler)
         {
-          usb_microphone_volume_set_handler(channelNum, volume[channelNum]);
+          usb_microphone_volume_set_handler(request->bChannelNumber, volume[request->bChannelNumber]);
         }
 
-        TU_LOG2("    Set Volume: %d dB of channel: %u\r\n", volume[channelNum], channelNum);
+        TU_LOG1("Set channel %d volume: %d dB\r\n", request->bChannelNumber, volume[request->bChannelNumber] / 256);
+
       return true;
 
         // Unknown/Unsupported control
@@ -339,6 +342,8 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
   // uint8_t itf = TU_U16_LOW(p_request->wIndex);       // Since we have only one audio function implemented, we do not need the itf value
   uint8_t entityID = TU_U16_HIGH(p_request->wIndex);
 
+  audio_control_request_t const *request = (audio_control_request_t const *)p_request;
+
   // Input terminal (Microphone input)
   if (entityID == UAC2_ENTITY_INPUT_TERMINAL)
   {
@@ -376,27 +381,32 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
         // Audio control mute cur parameter block consists of only one byte - we thus can send it right away
         // There does not exist a range parameter block for mute
         TU_LOG2("    Get Mute of channel: %u\r\n", channelNum);
-        return tud_control_xfer(rhport, p_request, &mute[channelNum], 1);
+        audio_control_cur_1_t mute1 = { .bCur = mute[request->bChannelNumber] };
+        return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &mute1, sizeof(mute1));
 
       case AUDIO_FU_CTRL_VOLUME:
         switch ( p_request->bRequest )
         {
           case AUDIO_CS_REQ_CUR:
             TU_LOG2("    Get Volume of channel: %u\r\n", channelNum);
-            return tud_control_xfer(rhport, p_request, &volume[channelNum], sizeof(volume[channelNum]));
+            audio_control_cur_2_t cur_vol = { .bCur = tu_htole16(volume[request->bChannelNumber]) };
+            return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &cur_vol, sizeof(cur_vol));
 
           case AUDIO_CS_REQ_RANGE:
             TU_LOG2("    Get Volume range of channel: %u\r\n", channelNum);
-
             // Copy values - only for testing - better is version below
+
+            TU_LOG1("Get channel %u volume range (%d, %d, %u) dB\r\n", request->bChannelNumber,
+                      range_vol.subrange[0].bMin / 256, range_vol.subrange[0].bMax / 256, range_vol.subrange[0].bRes / 256);
+
             audio_control_range_2_n_t(1) range_vol = {
-              .wNumSubRanges = tu_htole16(1),
-              .subrange[0] = { 
-                .bMin = tu_htole16(MIN_VOLUME_ENC), 
-                .bMax = tu_htole16(MAX_VOLUME_ENC), 
-                .bRes = tu_htole16(VOLUME_RESOLUTION_ENC) }
-            };
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, (void*) &range_vol, sizeof(range_vol));
+                .wNumSubRanges = (1),
+                .subrange[0] = { 
+                  .bMin = tu_htole16(0x8001), 
+                  .bMax = tu_htole16(0x7FFF), 
+                  .bRes = tu_htole16(0x0001) }
+              };
+              return tud_audio_buffer_and_schedule_control_xfer(rhport, (tusb_control_request_t const *)request, &range_vol, sizeof(range_vol));
 
             // Unknown/Unsupported control
           default:
@@ -428,12 +438,12 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * 
           case AUDIO_CS_REQ_RANGE:
           {
             TU_LOG2("    Get Sample Freq. range\r\n");
-            audio_control_range_4_n_t(N_sampleRates) rangef =
+            audio_control_range_4_n_t(N_SAMPLE_RATES) rangef =
             {
-                .wNumSubRanges = tu_htole16(N_sampleRates)
+                .wNumSubRanges = tu_htole16(N_SAMPLE_RATES)
             };
-            TU_LOG1("Clock get %d freq ranges\r\n", N_sampleRates);
-            for(uint8_t i = 0; i < N_sampleRates; i++)
+            TU_LOG1("Clock get %d freq ranges\r\n", N_SAMPLE_RATES);
+            for(uint8_t i = 0; i < N_SAMPLE_RATES; i++)
             {
                 rangef.subrange[i].bMin = (int32_t)sampleRatesList[i];
                 rangef.subrange[i].bMax = (int32_t)sampleRatesList[i];

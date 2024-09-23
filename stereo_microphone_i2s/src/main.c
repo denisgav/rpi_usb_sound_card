@@ -38,11 +38,6 @@
 
 #include "ws2812/ws2812.h"
 
-// Comment this define to disable volume control
-#define APPLY_VOLUME_FEATURE
-#define FORMAT_24B_TO_24B_SHIFT_VAL 4u
-#define FORMAT_24B_TO_16B_SHIFT_VAL 12u
-
 
 // Pointer to I2S handler
 machine_i2s_obj_t* i2s0 = NULL;
@@ -128,7 +123,7 @@ int main(void)
   {
     microphone_settings.volume[i] = DEFAULT_VOLUME;
     microphone_settings.mute[i] = 0;
-    microphone_settings.volume_db[i] = vol_to_db_convert_enc(microphone_settings.mute[i], microphone_settings.volume[i]);
+    microphone_settings.volume_db[i] = vol_to_db_convert(microphone_settings.mute[i], microphone_settings.volume[i]);
   }
 
   while (1)
@@ -186,14 +181,22 @@ void setup_led_and_button(){
 void usb_microphone_mute_handler(int8_t bChannelNumber, int8_t mute_in)
 {
   microphone_settings.mute[bChannelNumber] = mute_in;
-  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
+  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
   microphone_settings.status_updated = true;
 }
 
 void usb_microphone_volume_handler(int8_t bChannelNumber, int16_t volume_in)
 {
-  microphone_settings.volume[bChannelNumber] = volume_in;
-  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert_enc(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
+  // If value in range -91 to 0, apply as is
+  if((volume_in >= -91) && (volume_in <= 0))
+    microphone_settings.volume[bChannelNumber] = volume_in;
+   else { // Need to convert the value
+     int16_t volume_tmp = volume_in >> ENC_NUM_OF_FP_BITS; // Value in range -128 to 127
+     volume_tmp = volume_tmp - 127; // Value in range -255 to 0. Need to have -91 to 0
+     volume_tmp = (volume_tmp*91)/255;
+     microphone_settings.volume[bChannelNumber] = volume_tmp;    
+  }
+  microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
   microphone_settings.status_updated = true;
 }
 
@@ -416,15 +419,15 @@ void display_ssd1306_info(){
       char vol_str[20] = "Vol M:";
       char vol_tmp_str[20] = "";
 
-      itoa(microphone_settings.volume[0]>>ENC_NUM_OF_FP_BITS, vol_tmp_str, 10);
+      itoa(microphone_settings.volume[0]/*>>ENC_NUM_OF_FP_BITS*/, vol_tmp_str, 10);
       strcat(vol_str, vol_tmp_str);
 
       strcat(vol_str, " L:");
-      itoa(microphone_settings.volume[1]>>ENC_NUM_OF_FP_BITS, vol_tmp_str, 10);
+      itoa(microphone_settings.volume[1]/*>>ENC_NUM_OF_FP_BITS*/, vol_tmp_str, 10);
       strcat(vol_str, vol_tmp_str);
 
       strcat(vol_str, " R:");
-      itoa(microphone_settings.volume[2]>>ENC_NUM_OF_FP_BITS, vol_tmp_str, 10);
+      itoa(microphone_settings.volume[2]/*>>ENC_NUM_OF_FP_BITS*/, vol_tmp_str, 10);
       strcat(vol_str, vol_tmp_str);
 
       char mute_str[20] = "Mute M:";
