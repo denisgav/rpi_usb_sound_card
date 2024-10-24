@@ -57,10 +57,8 @@ STATIC uint32_t fill_appbuf_from_ringbuf(machine_i2s_obj_t *self, mp_buffer_info
     //   Thus, for every 1 byte copied to the app buffer, 4 bytes are read from the ring buffer.
     //   If a 8kB app buffer is supplied, 32kB of audio samples is read from the ring buffer.
 
-    uint32_t num_bytes_copied_to_appbuf = 0;
     RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(appbuf->buf);
-    uint8_t appbuf_sample_size_in_bytes = ((self->bits == 16)? 2 : 4) * 2;
-    uint32_t num_bytes_needed_from_ringbuf = appbuf->len * appbuf_sample_size_in_bytes;
+    uint32_t num_bytes_needed_from_ringbuf = appbuf->len;
     uint32_t num_of_items = (num_bytes_needed_from_ringbuf / RING_BUF_ITEM_SIZE_IN_BYTES);
 
     for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
@@ -95,9 +93,9 @@ STATIC uint32_t copy_appbuf_to_ringbuf(machine_i2s_obj_t *self, mp_buffer_info_t
 
 // function is used in IRQ context
 STATIC void empty_dma(machine_i2s_obj_t *self, uint8_t *dma_buffer_p) {
-    RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(dma_buffer_p);
     // when space exists, copy samples into ring buffer
     if (ringbuf_available_space(&self->ring_buffer) >= self->sizeof_half_dma_buffer_in_bytes) {
+        RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(dma_buffer_p);
         uint32_t num_of_items = (self->sizeof_half_dma_buffer_in_bytes/ RING_BUF_ITEM_SIZE_IN_BYTES);
         for (uint32_t i = 0; i < num_of_items; i++) {
             if(ringbuf_push(&self->ring_buffer, data[i]) == false){

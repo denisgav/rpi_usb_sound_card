@@ -115,7 +115,7 @@ int main(void)
   }
 
   for(int i=0; i<(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX); i++) {
-    speaker_settings.volume_mul_db[0] = speaker_settings.volume_db[0]
+    speaker_settings.volume_mul_db[i] = speaker_settings.volume_db[0]
       * speaker_settings.volume_db[i+1];
   }
 

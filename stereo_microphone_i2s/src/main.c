@@ -91,8 +91,8 @@ void setup_led_and_button();
 void button_mute_ISR(uint gpio, uint32_t events);
 //---------------------------------------
 
-int32_t i2s_to_usb_32b_sample_convert(int32_t sample, uint16_t volume_db);
-int16_t i2s_to_usb_16b_sample_convert(int16_t sample, uint16_t volume_db);
+int32_t i2s_to_usb_32b_sample_convert(int32_t sample, uint32_t volume_db);
+int16_t i2s_to_usb_16b_sample_convert(int16_t sample, uint32_t volume_db);
 
 /*------------- MAIN -------------*/
 int main(void)
@@ -126,6 +126,11 @@ int main(void)
     microphone_settings.volume_db[i] = vol_to_db_convert(microphone_settings.mute[i], microphone_settings.volume[i]);
   }
 
+  for(int i=0; i<(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX); i++) {
+    microphone_settings.volume_mul_db[0] = microphone_settings.volume_db[0]
+      * microphone_settings.volume_db[i+1];
+  }
+
   while (1)
   {
     usb_microphone_task(); // tinyusb device task
@@ -134,7 +139,7 @@ int main(void)
 
     status_update_task();
 
-    ws2812_task(microphone_settings.blink_interval_ms);
+    //ws2812_task(microphone_settings.blink_interval_ms);
   }
 }
 
@@ -182,6 +187,12 @@ void usb_microphone_mute_handler(int8_t bChannelNumber, int8_t mute_in)
 {
   microphone_settings.mute[bChannelNumber] = mute_in;
   microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
+
+  for(int i=0; i<(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX); i++) {
+    microphone_settings.volume_mul_db[i] = microphone_settings.volume_db[0]
+      * microphone_settings.volume_db[i+1];
+  }
+
   microphone_settings.status_updated = true;
 }
 
@@ -197,6 +208,12 @@ void usb_microphone_volume_handler(int8_t bChannelNumber, int16_t volume_in)
      microphone_settings.volume[bChannelNumber] = volume_tmp;    
   }
   microphone_settings.volume_db[bChannelNumber] = vol_to_db_convert(microphone_settings.mute[bChannelNumber], microphone_settings.volume[bChannelNumber]);
+
+  for(int i=0; i<(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX); i++) {
+    microphone_settings.volume_mul_db[i] = microphone_settings.volume_db[0]
+      * microphone_settings.volume_db[i+1];
+  }
+
   microphone_settings.status_updated = true;
 }
 
@@ -231,6 +248,7 @@ void on_usb_microphone_tx_pre_load(uint8_t rhport, uint8_t itf, uint8_t ep_in, u
   }
 }
 
+#if CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX == 2
 void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting)
 {
   if(i2s0) {
@@ -240,72 +258,75 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
     uint32_t buffer_size_read = microphone_settings.samples_in_i2s_frame_min * (4 * 2);
     int num_bytes_read = machine_i2s_read_stream(i2s0, (void*)&buffer[0], buffer_size_read);
 
-    if(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX == 2){
-      uint16_t volume_db_master = microphone_settings.volume_db[0];
-      uint16_t volume_db_left = microphone_settings.volume_db[1];
-      uint16_t volume_db_right = microphone_settings.volume_db[2];
-      {
-        int num_of_frames_read = num_bytes_read/(4 * 2);
-        for(uint32_t i = 0; i < num_of_frames_read; i++){
-          if(microphone_settings.resolution == 24){
-            int32_t left_24b = (int32_t)buffer[i].left << FORMAT_24B_TO_24B_SHIFT_VAL; // Magic number
-            int32_t right_24b = (int32_t)buffer[i].right << FORMAT_24B_TO_24B_SHIFT_VAL; // Magic number
-            left_24b = i2s_to_usb_32b_sample_convert(left_24b, volume_db_left);
-            left_24b = i2s_to_usb_32b_sample_convert(left_24b, volume_db_master);
-            right_24b = i2s_to_usb_32b_sample_convert(right_24b, volume_db_right);
-            right_24b = i2s_to_usb_32b_sample_convert(right_24b, volume_db_master);
+    uint32_t volume_db_left = microphone_settings.volume_mul_db[0];
+    uint32_t volume_db_right = microphone_settings.volume_mul_db[1];
+    {
+      int num_of_frames_read = num_bytes_read/(4 * 2);
+      for(uint32_t i = 0; i < num_of_frames_read; i++){
+        if(microphone_settings.resolution == 24){
+          int32_t left_24b = (int32_t)buffer[i].left << FORMAT_24B_TO_24B_SHIFT_VAL; // Magic number
+          int32_t right_24b = (int32_t)buffer[i].right << FORMAT_24B_TO_24B_SHIFT_VAL; // Magic number
+          left_24b = i2s_to_usb_32b_sample_convert(left_24b, volume_db_left);
+          right_24b = i2s_to_usb_32b_sample_convert(right_24b, volume_db_right);
 
-            i2s_24b_dummy_buffer[i*2] = left_24b; // TODO: check this value
-            i2s_24b_dummy_buffer[i*2+1] = right_24b; // TODO: check this value
-          }
-          else {
-            int32_t left_16b = (int32_t)buffer[i].left >> FORMAT_24B_TO_16B_SHIFT_VAL; // Magic number
-            int32_t right_16b = (int32_t)buffer[i].right >> FORMAT_24B_TO_16B_SHIFT_VAL; // Magic number
-            left_16b = i2s_to_usb_16b_sample_convert(left_16b, volume_db_left);
-            left_16b = i2s_to_usb_16b_sample_convert(left_16b, volume_db_master);
-            right_16b = i2s_to_usb_16b_sample_convert(right_16b, volume_db_right);
-            right_16b = i2s_to_usb_16b_sample_convert(right_16b, volume_db_master);
-
-            i2s_16b_dummy_buffer[i*2]   = left_16b; // TODO: check this value
-            i2s_16b_dummy_buffer[i*2+1] = right_16b; // TODO: check this value
-          }
+          i2s_24b_dummy_buffer[i*2] = left_24b; // TODO: check this value
+          i2s_24b_dummy_buffer[i*2+1] = right_24b; // TODO: check this value
         }
-      }
-    }
-    else{ //CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX is 1
-      uint16_t volume_db_master = microphone_settings.volume_db[0];
-      uint16_t volume_db_mono = microphone_settings.volume_db[1];
-      {
-        int num_of_frames_read = num_bytes_read/(4 * 2);
-        for(uint32_t i = 0; i < num_of_frames_read; i++){
-          if(microphone_settings.resolution == 24){
-            int32_t mono_24b = (int32_t)buffer[i].left;
-            mono_24b = i2s_to_usb_32b_sample_convert(mono_24b, volume_db_mono);
-            mono_24b = i2s_to_usb_32b_sample_convert(mono_24b, volume_db_master);
+        else {
+          int32_t left_16b = (int32_t)buffer[i].left >> FORMAT_24B_TO_16B_SHIFT_VAL; // Magic number
+          int32_t right_16b = (int32_t)buffer[i].right >> FORMAT_24B_TO_16B_SHIFT_VAL; // Magic number
+          left_16b = i2s_to_usb_16b_sample_convert(left_16b, volume_db_left);
+          right_16b = i2s_to_usb_16b_sample_convert(right_16b, volume_db_right);
 
-            i2s_24b_dummy_buffer[i] = mono_24b; // TODO: check this value
-          }
-          else {
-            int32_t mono_24b = (int32_t)buffer[i].left >> 8;
-            mono_24b = i2s_to_usb_16b_sample_convert(mono_24b, volume_db_mono);
-            mono_24b = i2s_to_usb_16b_sample_convert(mono_24b, volume_db_master);
-
-            i2s_16b_dummy_buffer[i]   = mono_24b; // TODO: check this value
-          }
+          i2s_16b_dummy_buffer[i*2]   = left_16b; // TODO: check this value
+          i2s_16b_dummy_buffer[i*2+1] = right_16b; // TODO: check this value
         }
       }
     }
   }
 }
+#else // CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX == 2
+void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting)
+{
+  if(i2s0) {
+    i2s_32b_audio_sample buffer[USB_MIC_SAMPLE_BUFFER_SIZE];
 
-int32_t i2s_to_usb_32b_sample_convert(int32_t sample, uint16_t volume_db){
+    // Read data from microphone
+    uint32_t buffer_size_read = microphone_settings.samples_in_i2s_frame_min * (4 * 2);
+    int num_bytes_read = machine_i2s_read_stream(i2s0, (void*)&buffer[0], buffer_size_read);
+
+    
+    uint32_t volume_db_mono = microphone_settings.volume_db[0];
+    {
+      int num_of_frames_read = num_bytes_read/(4 * 2);
+      for(uint32_t i = 0; i < num_of_frames_read; i++){
+        if(microphone_settings.resolution == 24){
+          int32_t mono_24b = (int32_t)buffer[i].left << FORMAT_24B_TO_24B_SHIFT_VAL; // Magic number
+          mono_24b = i2s_to_usb_32b_sample_convert(mono_24b, volume_db_mono);
+
+          i2s_24b_dummy_buffer[i] = mono_24b; // TODO: check this value
+        }
+        else {
+          int32_t mono_24b = (int32_t)buffer[i].left >> FORMAT_24B_TO_16B_SHIFT_VAL; // Magic number
+          mono_24b = i2s_to_usb_16b_sample_convert(mono_24b, volume_db_mono);
+
+          i2s_16b_dummy_buffer[i]   = mono_24b; // TODO: check this value
+        }
+      }
+    }
+  }
+}
+#endif // CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX == 2
+
+
+int32_t i2s_to_usb_32b_sample_convert(int32_t sample, uint32_t volume_db){
   #ifdef APPLY_VOLUME_FEATURE
     if(microphone_settings.user_mute) 
       return 0;
     else
     {
       int64_t sample_tmp = (int64_t)sample * (int64_t)volume_db;
-      sample_tmp = sample_tmp>>15;
+      sample_tmp = sample_tmp>>(15+15);
       return (int32_t)sample_tmp;
       //return (int32_t)sample;
     }
@@ -319,14 +340,14 @@ int32_t i2s_to_usb_32b_sample_convert(int32_t sample, uint16_t volume_db){
   #endif //APPLY_VOLUME_FEATURE
 }
 
-int16_t i2s_to_usb_16b_sample_convert(int16_t sample, uint16_t volume_db){
+int16_t i2s_to_usb_16b_sample_convert(int16_t sample, uint32_t volume_db){
   #ifdef APPLY_VOLUME_FEATURE
     if(microphone_settings.user_mute) 
       return 0;
     else
     {
-      int32_t sample_tmp = (int32_t)(sample) * (int32_t)volume_db;
-      sample_tmp = sample_tmp>>15;
+      int64_t sample_tmp = (int64_t)(sample) * (int64_t)volume_db;
+      sample_tmp = sample_tmp>>(15+15);
       return (int16_t)sample_tmp;
       //return (int16_t)sample;
     }
@@ -385,66 +406,88 @@ void button_mute_ISR(uint gpio, uint32_t events){
   microphone_settings.user_mute = !microphone_settings.user_mute;
 }
 
-void display_ssd1306_info(){
+void display_ssd1306_info(void) {
+  char fmt_tmp_str[20] = "";
+
   ssd1306_clear(&disp);
 
-  switch(microphone_settings.blink_interval_ms){
-    case BLINK_NOT_MOUNTED:{
-      ssd1306_draw_string(&disp, 4, 0, 1, "Microphone");
-      ssd1306_draw_string(&disp, 4, 16, 1, "not mounted");
+  switch (microphone_settings.blink_interval_ms) {
+    case BLINK_NOT_MOUNTED: {
+      ssd1306_draw_string(&disp, 4, 0, 1, "Mic not mounted");
       break;
     }
-    case BLINK_MOUNTED:{
-      ssd1306_draw_string(&disp, 4, 0, 1, "Microphone");
-      ssd1306_draw_string(&disp, 4, 16, 1, "mounted");
+    case BLINK_SUSPENDED: {
+      ssd1306_draw_string(&disp, 4, 0, 1, "Mic suspended");
       break;
     }
-    case BLINK_SUSPENDED:{
-      ssd1306_draw_string(&disp, 4, 0, 1, "Microphone");
-      ssd1306_draw_string(&disp, 4, 16, 1, "suspended");
+    case BLINK_MOUNTED: {
+      ssd1306_draw_string(&disp, 4, 0, 1, "Mic mounted");
       break;
     }
-    case BLINK_STREAMING:{
-      char format_str[20] = "Fmt:";
-      char format_tmp_str[20] = "";
+    case BLINK_STREAMING: {
+      char spk_streaming_str[20] = "Mic stream: ";
+      memset(fmt_tmp_str, 0x0, sizeof(fmt_tmp_str));
 
-      itoa((microphone_settings.sample_rate/1000), format_tmp_str, 10);
-      strcat(format_str, format_tmp_str);
-      strcat(format_str, " kHz, ");
+      itoa(microphone_settings.resolution, fmt_tmp_str, 10);
+      strcat(spk_streaming_str, fmt_tmp_str);
+      strcat(spk_streaming_str, " bit");
 
-      itoa(microphone_settings.resolution, format_tmp_str, 10);
-      strcat(format_str, format_tmp_str);
-      strcat(format_str, " bit");
-
-      char vol_str[20] = "Vol M:";
-      char vol_tmp_str[20] = "";
-
-      itoa(microphone_settings.volume[0]/*>>ENC_NUM_OF_FP_BITS*/, vol_tmp_str, 10);
-      strcat(vol_str, vol_tmp_str);
-
-      strcat(vol_str, " L:");
-      itoa(microphone_settings.volume[1]/*>>ENC_NUM_OF_FP_BITS*/, vol_tmp_str, 10);
-      strcat(vol_str, vol_tmp_str);
-
-      strcat(vol_str, " R:");
-      itoa(microphone_settings.volume[2]/*>>ENC_NUM_OF_FP_BITS*/, vol_tmp_str, 10);
-      strcat(vol_str, vol_tmp_str);
-
-      char mute_str[20] = "Mute M:";
-      strcat(mute_str, (microphone_settings.mute[0] ? "T" : "F"));
-
-      strcat(mute_str, " L:");
-      strcat(mute_str, (microphone_settings.mute[1] ? "T" : "F"));
-
-      strcat(mute_str, " R:");
-      strcat(mute_str, (microphone_settings.mute[2] ? "T" : "F"));
-
-      ssd1306_draw_string(&disp, 4, 0, 1, format_str);
-      ssd1306_draw_string(&disp, 4, 8, 1, vol_str);
-      ssd1306_draw_string(&disp, 4, 16, 1, mute_str);
+      ssd1306_draw_string(&disp, 4, 0, 1, spk_streaming_str);
+      break;
     }
-  } 
+    default: {
+      ssd1306_draw_string(&disp, 4, 0, 1, "Mic unknown");
+      break;
+    }
+  }
+
   
+
+  {
+    char freq_str[20] = "Freq: ";
+
+    memset(fmt_tmp_str, 0x0, sizeof(fmt_tmp_str));
+
+    itoa((microphone_settings.sample_rate), fmt_tmp_str, 10);
+    strcat(freq_str, fmt_tmp_str);
+    strcat(freq_str, " Hz");
+
+    ssd1306_draw_string(&disp, 4, 16, 1, freq_str);
+  }
+
+  {
+    char vol_m_str[20] = "Vol M:";
+    char vol_l_str[20] = "Vol L:";
+    char vol_r_str[20] = "Vol R:";
+
+    memset(fmt_tmp_str, 0x0, sizeof(fmt_tmp_str));
+    itoa((microphone_settings.volume[0]),
+        fmt_tmp_str, 10);
+    strcat(vol_m_str, fmt_tmp_str);
+
+    strcat(vol_m_str, " Mute: ");
+    strcat(vol_m_str, (microphone_settings.mute[0] ? "T" : "F"));
+
+    memset(fmt_tmp_str, 0x0, sizeof(fmt_tmp_str));
+    itoa((microphone_settings.volume[1]),
+        fmt_tmp_str, 10);
+    strcat(vol_l_str, fmt_tmp_str);
+
+    strcat(vol_l_str, " Mute: ");
+    strcat(vol_l_str, (microphone_settings.mute[1] ? "T" : "F"));
+
+    memset(fmt_tmp_str, 0x0, sizeof(fmt_tmp_str));
+    itoa((microphone_settings.volume[2]),
+        fmt_tmp_str, 10);
+    strcat(vol_r_str, fmt_tmp_str);
+
+    strcat(vol_r_str, " Mute: ");
+    strcat(vol_r_str, (microphone_settings.mute[2] ? "T" : "F"));
+
+    ssd1306_draw_string(&disp, 4, 24, 1, vol_m_str);
+    ssd1306_draw_string(&disp, 4, 32, 1, vol_l_str);
+    ssd1306_draw_string(&disp, 4, 40, 1, vol_r_str);
+  }
   ssd1306_show(&disp);
 }
 
