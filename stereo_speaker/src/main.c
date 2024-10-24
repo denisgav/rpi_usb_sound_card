@@ -63,7 +63,7 @@ void refresh_i2s_connections()
   speaker_settings.samples_in_i2s_frame_max = (speaker_settings.sample_rate+999)/1000;
 
   speaker_i2s0 = create_machine_i2s(0, I2S_SPK_SCK, I2S_SPK_WS, I2S_SPK_SD, TX, 
-    ((speaker_settings.resolution == 16) ? 16 : 32), STEREO, /*ringbuf_len*/SIZEOF_DMA_BUFFER_IN_BYTES, speaker_settings.sample_rate);
+    ((speaker_settings.resolution == 16) ? 16 : 32), /*ringbuf_len*/SIZEOF_DMA_BUFFER_IN_BYTES, speaker_settings.sample_rate);
   
   // update_pio_frequency(speaker_i2s0, speaker_settings.usb_sample_rate);
 }
@@ -126,7 +126,7 @@ int main(void)
 
     status_update_task();
 
-    ws2812_task(speaker_settings.blink_interval_ms);
+    //ws2812_task(speaker_settings.blink_interval_ms);
   }
 }
 

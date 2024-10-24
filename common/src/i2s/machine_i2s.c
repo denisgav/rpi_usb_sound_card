@@ -35,71 +35,7 @@
 
 STATIC machine_i2s_obj_t* machine_i2s_obj[MAX_I2S_RP2] = {NULL, NULL};
 
-// The frame map is used with the readinto() method to transform the audio sample data coming
-// from DMA memory (32-bit stereo) to the format specified
-// in the I2S constructor.  e.g.  16-bit mono
-STATIC const int8_t i2s_frame_map[NUM_I2S_USER_FORMATS][I2S_RX_FRAME_SIZE_IN_BYTES] = {
-    {-1, -1,  0,  1, -1, -1, -1, -1 },  // Mono, 16-bits
-    { 0,  1,  2,  3, -1, -1, -1, -1 },  // Mono, 32-bits
-    {-1, -1,  0,  1, -1, -1,  2,  3 },  // Stereo, 16-bits
-    { 0,  1,  2,  3,  4,  5,  6,  7 },  // Stereo, 32-bits
-};
-
 STATIC const PIO pio_instances[NUM_PIOS] = {pio0, pio1};
-
-//  PIO program for 16-bit write
-//    set(x, 14)                  .side(0b01)
-//    label('left_channel')
-//    out(pins, 1)                .side(0b00)
-//    jmp(x_dec, "left_channel")  .side(0b01)
-//    out(pins, 1)                .side(0b10)
-//    set(x, 14)                  .side(0b11)
-//    label('right_channel')
-//    out(pins, 1)                .side(0b10)
-//    jmp(x_dec, "right_channel") .side(0b11)
-//    out(pins, 1)                .side(0b00)
-STATIC const uint16_t pio_instructions_write_16[] = {59438, 24577, 2113, 28673, 63534, 28673, 6213, 24577};
-STATIC const pio_program_t pio_write_16 = {
-    pio_instructions_write_16,
-    sizeof(pio_instructions_write_16) / sizeof(uint16_t),
-    -1
-};
-
-//  PIO program for 32-bit write
-//    set(x, 30)                  .side(0b01)
-//    label('left_channel')
-//    out(pins, 1)                .side(0b00)
-//    jmp(x_dec, "left_channel")  .side(0b01)
-//    out(pins, 1)                .side(0b10)
-//    set(x, 30)                  .side(0b11)
-//    label('right_channel')
-//    out(pins, 1)                .side(0b10)
-//    jmp(x_dec, "right_channel") .side(0b11)
-//    out(pins, 1)                .side(0b00)
-STATIC const uint16_t pio_instructions_write_32[] = {59454, 24577, 2113, 28673, 63550, 28673, 6213, 24577};
-STATIC const pio_program_t pio_write_32 = {
-    pio_instructions_write_32,
-    sizeof(pio_instructions_write_32) / sizeof(uint16_t),
-    -1
-};
-
-//  PIO program for 32-bit read
-//    set(x, 30)                  .side(0b00)
-//    label('left_channel')
-//    in_(pins, 1)                .side(0b01)
-//    jmp(x_dec, "left_channel")  .side(0b00)
-//    in_(pins, 1)                .side(0b11)
-//    set(x, 30)                  .side(0b10)
-//    label('right_channel')
-//    in_(pins, 1)                .side(0b11)
-//    jmp(x_dec, "right_channel") .side(0b10)
-//    in_(pins, 1)                .side(0b01)
-STATIC const uint16_t pio_instructions_read_32[] = {57406, 18433, 65, 22529, 61502, 22529, 4165, 18433};
-STATIC const pio_program_t pio_read_32 = {
-    pio_instructions_read_32,
-    sizeof(pio_instructions_read_32) / sizeof(uint16_t),
-    -1
-};
 
 STATIC uint8_t dma_get_bits(i2s_mode_t mode, int8_t bits);
 STATIC void dma_irq0_handler(void);
@@ -108,22 +44,6 @@ STATIC void machine_i2s_deinit(machine_i2s_obj_t *self);
 
 //-----------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------
-
-STATIC int8_t get_frame_mapping_index(int8_t bits, format_t format) {
-    if (format == MONO) {
-        if (bits == 16) {
-            return 0;
-        } else { // 32 bits
-            return 1;
-        }
-    } else { // STEREO
-        if (bits == 16) {
-            return 2;
-        } else { // 32 bits
-            return 3;
-        }
-    }
-}
 
 STATIC uint32_t fill_appbuf_from_ringbuf(machine_i2s_obj_t *self, mp_buffer_info_t *appbuf) {
 
@@ -138,55 +58,18 @@ STATIC uint32_t fill_appbuf_from_ringbuf(machine_i2s_obj_t *self, mp_buffer_info
     //   If a 8kB app buffer is supplied, 32kB of audio samples is read from the ring buffer.
 
     uint32_t num_bytes_copied_to_appbuf = 0;
-    uint8_t *app_p = (uint8_t *)appbuf->buf;
-    uint8_t appbuf_sample_size_in_bytes = (self->bits == 16? 2 : 4) * (self->format == STEREO ? 2: 1);
-    uint32_t num_bytes_needed_from_ringbuf = appbuf->len * (I2S_RX_FRAME_SIZE_IN_BYTES / appbuf_sample_size_in_bytes);
-    uint8_t discard_byte;
-    while (num_bytes_needed_from_ringbuf) {
+    RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(appbuf->buf);
+    uint8_t appbuf_sample_size_in_bytes = ((self->bits == 16)? 2 : 4) * 2;
+    uint32_t num_bytes_needed_from_ringbuf = appbuf->len * appbuf_sample_size_in_bytes;
+    uint32_t num_of_items = (num_bytes_needed_from_ringbuf / RING_BUF_ITEM_SIZE_IN_BYTES);
 
-        uint8_t f_index = get_frame_mapping_index(self->bits, self->format);
-
-        for (uint8_t i = 0; i < I2S_RX_FRAME_SIZE_IN_BYTES; i++) {
-            int8_t r_to_a_mapping = i2s_frame_map[f_index][i];
-            if (r_to_a_mapping != -1) {
-                if (self->io_mode == BLOCKING) {
-                    // poll the ringbuf until a sample becomes available,  copy into appbuf using the mapping transform
-                    while (ringbuf_pop(&self->ring_buffer, app_p + r_to_a_mapping) == false) {
-                        ;
-                    }
-                    num_bytes_copied_to_appbuf++;
-                } else if (self->io_mode == UASYNCIO) {
-                    if (ringbuf_pop(&self->ring_buffer, app_p + r_to_a_mapping) == false) {
-                        // ring buffer is empty, exit
-                        goto exit;
-                    } else {
-                        num_bytes_copied_to_appbuf++;
-                    }
-                } else {
-                    return 0;  // should never get here (non-blocking mode does not use this function)
-                }
-            } else { // r_a_mapping == -1
-                // discard unused byte from ring buffer
-                if (self->io_mode == BLOCKING) {
-                    // poll the ringbuf until a sample becomes available
-                    while (ringbuf_pop(&self->ring_buffer, &discard_byte) == false) {
-                        ;
-                    }
-                } else if (self->io_mode == UASYNCIO) {
-                    if (ringbuf_pop(&self->ring_buffer, &discard_byte) == false) {
-                        // ring buffer is empty, exit
-                        goto exit;
-                    }
-                } else {
-                    return 0;  // should never get here (non-blocking mode does not use this function)
-                }
-            }
-            num_bytes_needed_from_ringbuf--;
+    for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
+        if(ringbuf_pop(&self->ring_buffer, &(data[a_index])) == false) {
+            return a_index*RING_BUF_ITEM_SIZE_IN_BYTES;
         }
-        app_p += appbuf_sample_size_in_bytes;
     }
-exit:
-    return num_bytes_copied_to_appbuf;
+
+    return num_bytes_needed_from_ringbuf;
 }
 
 STATIC uint32_t copy_appbuf_to_ringbuf(machine_i2s_obj_t *self, mp_buffer_info_t *appbuf) {
@@ -195,90 +78,16 @@ STATIC uint32_t copy_appbuf_to_ringbuf(machine_i2s_obj_t *self, mp_buffer_info_t
     // loop, reading samples until the app buffer is emptied
     // for uasyncio mode, the loop will make an early exit if the ring buffer becomes full
 
-    uint32_t a_index = 0;
+    RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(appbuf->buf);
+    uint32_t num_of_items = (appbuf->len / RING_BUF_ITEM_SIZE_IN_BYTES);
 
-    while (a_index < appbuf->len) {
-        if (self->io_mode == BLOCKING) {
-            // copy a byte to the ringbuf when space becomes available
-            while (ringbuf_push(&self->ring_buffer, ((uint8_t *)appbuf->buf)[a_index]) == false) {
-                ;
-            }
-            a_index++;
-        } else if (self->io_mode == UASYNCIO) {
-            if (ringbuf_push(&self->ring_buffer, ((uint8_t *)appbuf->buf)[a_index]) == false) {
-                // ring buffer is full, exit
-                break;
-            } else {
-                a_index++;
-            }
-        } else {
-            return 0;  // should never get here (non-blocking mode does not use this function)
+    for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
+        if (ringbuf_push(&self->ring_buffer, data[a_index]) == false) {
+            return a_index*RING_BUF_ITEM_SIZE_IN_BYTES;
         }
     }
 
-    return a_index;
-}
-
-// function is used in IRQ context
-static void copy_appbuf_to_ringbuf_non_blocking(machine_i2s_obj_t *self) {
-
-    // copy audio samples from app buffer into ring buffer
-    uint32_t num_bytes_remaining_to_copy = self->non_blocking_descriptor.appbuf.len - self->non_blocking_descriptor.index;
-    uint32_t num_bytes_to_copy = MIN(self->sizeof_non_blocking_copy_in_bytes, num_bytes_remaining_to_copy);
-
-    if (ringbuf_available_space(&self->ring_buffer) >= num_bytes_to_copy) {
-        for (uint32_t i = 0; i < num_bytes_to_copy; i++) {
-            ringbuf_push(&self->ring_buffer,
-                ((uint8_t *)self->non_blocking_descriptor.appbuf.buf)[self->non_blocking_descriptor.index + i]);
-        }
-
-        self->non_blocking_descriptor.index += num_bytes_to_copy;
-        if (self->non_blocking_descriptor.index >= self->non_blocking_descriptor.appbuf.len) {
-            self->non_blocking_descriptor.copy_in_progress = false;
-            //mp_sched_schedule(self->callback_for_non_blocking, MP_OBJ_FROM_PTR(self));
-        }
-    }
-}
-
-static void fill_appbuf_from_ringbuf_non_blocking(machine_i2s_obj_t *self) {
-
-    // attempt to copy a block of audio samples from the ring buffer to the supplied app buffer.
-    // audio samples will be formatted as part of the copy operation
-
-    uint32_t num_bytes_copied_to_appbuf = 0;
-    uint8_t *app_p = &(((uint8_t *)self->non_blocking_descriptor.appbuf.buf)[self->non_blocking_descriptor.index]);
-
-    uint8_t appbuf_sample_size_in_bytes = (self->bits == 16? 2 : 4) * (self->format == STEREO ? 2: 1);
-    uint32_t num_bytes_remaining_to_copy_to_appbuf = self->non_blocking_descriptor.appbuf.len - self->non_blocking_descriptor.index;
-    uint32_t num_bytes_remaining_to_copy_from_ring_buffer = num_bytes_remaining_to_copy_to_appbuf *
-        (I2S_RX_FRAME_SIZE_IN_BYTES / appbuf_sample_size_in_bytes);
-    uint32_t num_bytes_needed_from_ringbuf = MIN(self->sizeof_non_blocking_copy_in_bytes, num_bytes_remaining_to_copy_from_ring_buffer);
-    uint8_t discard_byte;
-    if (ringbuf_available_data(&self->ring_buffer) >= num_bytes_needed_from_ringbuf) {
-        while (num_bytes_needed_from_ringbuf) {
-
-            uint8_t f_index = get_frame_mapping_index(self->bits, self->format);
-
-            for (uint8_t i = 0; i < I2S_RX_FRAME_SIZE_IN_BYTES; i++) {
-                int8_t r_to_a_mapping = i2s_frame_map[f_index][i];
-                if (r_to_a_mapping != -1) {
-                    ringbuf_pop(&self->ring_buffer, app_p + r_to_a_mapping);
-                    num_bytes_copied_to_appbuf++;
-                } else { // r_a_mapping == -1
-                    // discard unused byte from ring buffer
-                    ringbuf_pop(&self->ring_buffer, &discard_byte);
-                }
-                num_bytes_needed_from_ringbuf--;
-            }
-            app_p += appbuf_sample_size_in_bytes;
-        }
-        self->non_blocking_descriptor.index += num_bytes_copied_to_appbuf;
-
-        if (self->non_blocking_descriptor.index >= self->non_blocking_descriptor.appbuf.len) {
-            self->non_blocking_descriptor.copy_in_progress = false;
-            //mp_sched_schedule(self->callback_for_non_blocking, MP_OBJ_FROM_PTR(self));
-        }
-    }
+    return appbuf->len;
 }
 
 //-----------------------------------------------------------------------------------
@@ -286,10 +95,14 @@ static void fill_appbuf_from_ringbuf_non_blocking(machine_i2s_obj_t *self) {
 
 // function is used in IRQ context
 STATIC void empty_dma(machine_i2s_obj_t *self, uint8_t *dma_buffer_p) {
+    RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(dma_buffer_p);
     // when space exists, copy samples into ring buffer
     if (ringbuf_available_space(&self->ring_buffer) >= self->sizeof_half_dma_buffer_in_bytes) {
-        for (uint32_t i = 0; i < self->sizeof_half_dma_buffer_in_bytes; i++) {
-            ringbuf_push(&self->ring_buffer, dma_buffer_p[i]);
+        uint32_t num_of_items = (self->sizeof_half_dma_buffer_in_bytes/ RING_BUF_ITEM_SIZE_IN_BYTES);
+        for (uint32_t i = 0; i < num_of_items; i++) {
+            if(ringbuf_push(&self->ring_buffer, data[i]) == false){
+                return;
+            }
         }
     }
 }
@@ -305,30 +118,20 @@ STATIC uint32_t feed_dma(machine_i2s_obj_t *self, uint8_t *dma_buffer_p) {
     uint32_t transfer_size_in_bytes = dma_get_bits(self->mode, self->bits) / 8;
     uint32_t available_data_transfers = (available_data_bytes==0) ? 0 : (available_data_bytes/transfer_size_in_bytes);
 
+    RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(dma_buffer_p);
+
     //if (available_data >= self->sizeof_half_dma_buffer_in_bytes) {
     if (available_data_bytes >= self->sizeof_half_dma_buffer_in_bytes) {
         // copy a block of samples from the ring buffer to the dma buffer.
         // STM32 HAL API has a stereo I2S implementation, but not mono
         // mono format is implemented by duplicating each sample into both L and R channels.
-        if ((self->format == MONO) && (self->bits == 16)) {
-            for (uint32_t i = 0; i < available_data_transfers; i++) {
-                for (uint8_t b = 0; b < sizeof(uint16_t); b++) {
-                    ringbuf_pop(&self->ring_buffer, &dma_buffer_p[i * 4 + b]);
-                    dma_buffer_p[i * 4 + b + 2] = dma_buffer_p[i * 4 + b]; // duplicated mono sample
-                }
-            }
-        } else if ((self->format == MONO) && (self->bits == 32)) {
-            for (uint32_t i = 0; i < available_data_transfers; i++) {
-                for (uint8_t b = 0; b < sizeof(uint32_t); b++) {
-                    ringbuf_pop(&self->ring_buffer, &dma_buffer_p[i * 8 + b]);
-                    dma_buffer_p[i * 8 + b + 4] = dma_buffer_p[i * 8 + b]; // duplicated mono sample
-                }
-            }
-        } else { // STEREO, both 16-bit and 32-bit
-            for (uint32_t i = 0; i < available_data_transfers*transfer_size_in_bytes; i++) {
-                ringbuf_pop(&self->ring_buffer, &dma_buffer_p[i]);
-            }
+
+        uint32_t num_of_items = (available_data_bytes/RING_BUF_ITEM_SIZE_IN_BYTES);
+
+        for (uint32_t i = 0; i < num_of_items; i++) {
+            ringbuf_pop(&self->ring_buffer, &data[i]);
         }
+
     } else {
         // underflow.  clear buffer to transmit "silence" on the I2S bus
         available_data_bytes = self->sizeof_half_dma_buffer_in_bytes;
@@ -359,12 +162,12 @@ STATIC void irq_deinit(machine_i2s_obj_t *self) {
 STATIC int pio_configure(machine_i2s_obj_t *self) {
     if (self->mode == TX) {
         if (self->bits == 16) {
-            self->pio_program = &audio_i2s_tx_16b_program; //&pio_write_16;
+            self->pio_program = &audio_i2s_tx_16b_program;
         } else {
-            self->pio_program = &audio_i2s_tx_32b_program; //&pio_write_32;
+            self->pio_program = &audio_i2s_tx_32b_program;
         }
     } else { // RX
-        self->pio_program = &audio_i2s_rx_32b_program; //&pio_read_32;
+        self->pio_program = &audio_i2s_rx_32b_program;
     }
 
     // find a PIO with a free state machine and adequate program space
@@ -582,11 +385,6 @@ STATIC void dma_irq_handler(uint8_t irq_index) {
     }
 
     if (self->mode == TX) {
-        // for non-blocking operation handle the write() method requests.
-        if ((self->io_mode == NON_BLOCKING) && (self->non_blocking_descriptor.copy_in_progress)) {
-            copy_appbuf_to_ringbuf_non_blocking(self);
-        }
-
         uint32_t trans_count = feed_dma(self, dma_buffer);
         //dma_channel_set_trans_count (dma_channel, trans_count, false);
         dma_channel_set_read_addr(dma_channel, dma_buffer, false);
@@ -595,11 +393,6 @@ STATIC void dma_irq_handler(uint8_t irq_index) {
         empty_dma(self, dma_buffer);
         dma_irqn_acknowledge_channel(irq_index, dma_channel);
         dma_channel_set_write_addr(dma_channel, dma_buffer, false);
-
-        // for non-blocking operation handle the readinto() method requests.
-        if ((self->io_mode == NON_BLOCKING) && (self->non_blocking_descriptor.copy_in_progress)) {
-            fill_appbuf_from_ringbuf_non_blocking(self);
-        }
     }
 }
 
@@ -613,8 +406,7 @@ STATIC void dma_irq1_handler(void) {
 
 STATIC int machine_i2s_init_helper(machine_i2s_obj_t *self,
               mp_hal_pin_obj_t sck, mp_hal_pin_obj_t ws, mp_hal_pin_obj_t sd,
-              i2s_mode_t i2s_mode, int8_t i2s_bits, format_t i2s_format,
-              int32_t ring_buffer_len, int32_t i2s_rate) {
+              i2s_mode_t i2s_mode, int8_t i2s_bits, int32_t ring_buffer_len, int32_t i2s_rate) {
     //
     // ---- Check validity of arguments ----
     //
@@ -640,13 +432,6 @@ STATIC int machine_i2s_init_helper(machine_i2s_obj_t *self,
         return -3;
     }
 
-    // is Format valid?
-    if ((i2s_format != MONO) &&
-        (i2s_format != STEREO)) {
-        //mp_raise_ValueError(MP_ERROR_TEXT("invalid format"));
-        return -4;
-    }
-
     // is Rate valid?
     // Not checked
 
@@ -665,17 +450,11 @@ STATIC int machine_i2s_init_helper(machine_i2s_obj_t *self,
     self->sd = sd;
     self->mode = i2s_mode;
     self->bits = i2s_bits;
-    self->format = i2s_format;
     self->rate = i2s_rate;
-    self->ibuf = ring_buffer_len;
-    self->non_blocking_descriptor.copy_in_progress = false;
-    self->io_mode = BLOCKING;
 
-    //memset(self->dma_buffer, 0, SIZEOF_DMA_BUFFER_IN_BYTES);
+    memset(self->dma_buffer, 0, ring_buffer_len);
 
     self->sizeof_half_dma_buffer_in_bytes = ((self->rate+999)/1000) * ((i2s_bits == 32) ? 8 : 4);
-
-    self->sizeof_non_blocking_copy_in_bytes = self->sizeof_half_dma_buffer_in_bytes * NON_BLOCKING_RATE_MULTIPLIER;
 
     irq_configure(self);
     int err = pio_configure(self);
@@ -714,8 +493,7 @@ STATIC int machine_i2s_init_helper(machine_i2s_obj_t *self,
 
 STATIC machine_i2s_obj_t* machine_i2s_make_new(uint8_t i2s_id,
               mp_hal_pin_obj_t sck, mp_hal_pin_obj_t ws, mp_hal_pin_obj_t sd,
-              i2s_mode_t i2s_mode, int8_t i2s_bits, format_t i2s_format,
-              int32_t ring_buffer_len, int32_t i2s_rate) {
+              i2s_mode_t i2s_mode, int8_t i2s_bits, int32_t ring_buffer_len, int32_t i2s_rate) {
     if (i2s_id >= MAX_I2S_RP2) {
         return NULL;
     }
@@ -732,7 +510,7 @@ STATIC machine_i2s_obj_t* machine_i2s_make_new(uint8_t i2s_id,
     self->i2s_id = i2s_id;
 
     if (machine_i2s_init_helper(self, sck, ws, sd, i2s_mode, i2s_bits,
-            i2s_format, ring_buffer_len, i2s_rate) != 0) {
+            ring_buffer_len, i2s_rate) != 0) {
         return NULL;
     }
     return self;
@@ -758,7 +536,7 @@ STATIC int machine_i2s_stream_read(machine_i2s_obj_t *self, void *buf_in, size_t
         return -1;
     }
 
-    uint8_t appbuf_sample_size_in_bytes = (self->bits / 8) * (self->format == STEREO ? 2: 1);
+    uint8_t appbuf_sample_size_in_bytes = 2 * (self->bits / 8);
     if (size % appbuf_sample_size_in_bytes != 0) {
         return -2;
     }
@@ -779,7 +557,7 @@ STATIC int machine_i2s_stream_write(machine_i2s_obj_t *self, void *buf_in, size_
         return -1;
     }
 
-    uint8_t appbuf_sample_size_in_bytes = (self->bits / 8) * (self->format == STEREO ? 2: 1);
+    uint8_t appbuf_sample_size_in_bytes = 2 * (self->bits / 8);
     if (size % appbuf_sample_size_in_bytes != 0) {
         return -2;
     }
@@ -801,10 +579,10 @@ STATIC int machine_i2s_stream_write(machine_i2s_obj_t *self, void *buf_in, size_
 
 machine_i2s_obj_t* create_machine_i2s(uint8_t i2s_id,
               mp_hal_pin_obj_t sck, mp_hal_pin_obj_t ws, mp_hal_pin_obj_t sd,
-              i2s_mode_t i2s_mode, int8_t i2s_bits, format_t i2s_format,
+              i2s_mode_t i2s_mode, int8_t i2s_bits, 
               int32_t ring_buffer_len, int32_t i2s_rate)
 {
-    return machine_i2s_make_new(i2s_id, sck, ws, sd, i2s_mode, i2s_bits, i2s_format, ring_buffer_len, i2s_rate);
+    return machine_i2s_make_new(i2s_id, sck, ws, sd, i2s_mode, i2s_bits, ring_buffer_len, i2s_rate);
 }
 
 

@@ -70,7 +70,7 @@ void refresh_i2s_connections()
   microphone_settings.samples_in_i2s_frame_min = (microphone_settings.sample_rate)    /1000;
   microphone_settings.samples_in_i2s_frame_max = (microphone_settings.sample_rate+999)/1000;
 
-  i2s0 = create_machine_i2s(0, I2S_MIC_SCK, I2S_MIC_WS, I2S_MIC_SD, RX, I2S_MIC_BPS, STEREO, /*ringbuf_len*/SIZEOF_DMA_BUFFER_IN_BYTES, I2S_MIC_RATE_DEF);
+  i2s0 = create_machine_i2s(0, I2S_MIC_SCK, I2S_MIC_WS, I2S_MIC_SD, RX, I2S_MIC_BPS, /*ringbuf_len*/SIZEOF_DMA_BUFFER_IN_BYTES, I2S_MIC_RATE_DEF);
   
   // update_pio_frequency(speaker_i2s0, microphone_settings.usb_sample_rate);
 }
@@ -237,15 +237,15 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
     i2s_32b_audio_sample buffer[USB_MIC_SAMPLE_BUFFER_SIZE];
 
     // Read data from microphone
-    uint32_t buffer_size_read = microphone_settings.samples_in_i2s_frame_min * 4 * 2;
+    uint32_t buffer_size_read = microphone_settings.samples_in_i2s_frame_min * (4 * 2);
     int num_bytes_read = machine_i2s_read_stream(i2s0, (void*)&buffer[0], buffer_size_read);
 
     if(CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX == 2){
       uint16_t volume_db_master = microphone_settings.volume_db[0];
       uint16_t volume_db_left = microphone_settings.volume_db[1];
       uint16_t volume_db_right = microphone_settings.volume_db[2];
-      if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
-        int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
+      {
+        int num_of_frames_read = num_bytes_read/(4 * 2);
         for(uint32_t i = 0; i < num_of_frames_read; i++){
           if(microphone_settings.resolution == 24){
             int32_t left_24b = (int32_t)buffer[i].left << FORMAT_24B_TO_24B_SHIFT_VAL; // Magic number
@@ -275,8 +275,8 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
     else{ //CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX is 1
       uint16_t volume_db_master = microphone_settings.volume_db[0];
       uint16_t volume_db_mono = microphone_settings.volume_db[1];
-      if(num_bytes_read >= I2S_RX_FRAME_SIZE_IN_BYTES) {
-        int num_of_frames_read = num_bytes_read/I2S_RX_FRAME_SIZE_IN_BYTES;
+      {
+        int num_of_frames_read = num_bytes_read/(4 * 2);
         for(uint32_t i = 0; i < num_of_frames_read; i++){
           if(microphone_settings.resolution == 24){
             int32_t mono_24b = (int32_t)buffer[i].left;
