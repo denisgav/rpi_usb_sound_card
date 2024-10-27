@@ -1,4 +1,4 @@
-#include "i2s/ring_buf.h"
+#include "ring_buf.h"
 
 // Ring Buffer
 // Thread safe when used with these constraints:

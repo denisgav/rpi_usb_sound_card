@@ -39,6 +39,7 @@ add_library(pico_pdm_microphone INTERFACE)
 target_sources(pico_pdm_microphone INTERFACE
     ${CMAKE_CURRENT_LIST_DIR}/common/src/pdm/pdm_microphone.c
     ${CMAKE_CURRENT_LIST_DIR}/common/OpenPDM2PCM/OpenPDMFilter.c
+    ${CMAKE_CURRENT_LIST_DIR}/common/src/ring_buf.c
 )
 
 target_include_directories(pico_pdm_microphone INTERFACE
@@ -59,7 +60,7 @@ add_library(pico_i2S_audio INTERFACE)
 
 target_sources(pico_i2S_audio INTERFACE
     ${CMAKE_CURRENT_LIST_DIR}/common/src/i2s/machine_i2s.c
-    ${CMAKE_CURRENT_LIST_DIR}/common/src/i2s/ring_buf.c
+    ${CMAKE_CURRENT_LIST_DIR}/common/src/ring_buf.c
 )
 
 target_include_directories(pico_i2S_audio INTERFACE

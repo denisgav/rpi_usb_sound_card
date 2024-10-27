@@ -12,6 +12,8 @@
 
 #include "OpenPDMFilter.h"
 
+#include "ring_buf.h"
+
 #define MAX_PDM_RP2 (2)
 
 #ifndef STATIC
@@ -28,6 +30,7 @@
 
 #define PDM_DECIMATION       64
 #define PDM_RAW_BUFFER_COUNT 2
+#define PDM_SIZEOF_DMA_BUFFER_IN_BYTES (16 * (PDM_DECIMATION/8) * 4) // Max frequency is 16000. in worst case. 1ms contains 16 samples. Each sample is 2 bytes. Need to hold 2 buffers of this size
 
 typedef void (*pdm_samples_ready_handler_t)(uint8_t pdm_id);
 
@@ -47,10 +50,15 @@ typedef struct __pdm_mic_obj{
     uint pio_sm;
     uint pio_sm_offset;
     int dma_channel;
+
     uint8_t* raw_buffer[PDM_RAW_BUFFER_COUNT];
     volatile int raw_buffer_write_index;
-    volatile int raw_buffer_read_index;
     uint raw_buffer_size;
+    uint8_t* read_raw_buffer;
+
+    ring_buf_t ring_buffer;
+    uint8_t *ring_buffer_storage;
+
     TPDMFilter_InitStruct filter;
     uint16_t filter_volume;
     pdm_samples_ready_handler_t samples_ready_handler;

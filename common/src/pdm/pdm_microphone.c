@@ -75,7 +75,20 @@ pdm_mic_obj* pdm_microphone_init(pdm_microphone_config* config) {
 
             return NULL;   
         }
+        memset(pdm_mic->raw_buffer[i], 0x0, pdm_mic->raw_buffer_size);
     }
+
+    pdm_mic->read_raw_buffer = malloc(pdm_mic->raw_buffer_size);
+    if (pdm_mic->read_raw_buffer == NULL) {
+        pdm_microphone_deinit(pdm_mic);
+
+        return NULL;   
+    }
+
+    uint32_t ring_buffer_len = PDM_SIZEOF_DMA_BUFFER_IN_BYTES;
+    pdm_mic->ring_buffer_storage = m_new(uint8_t, ring_buffer_len);
+    ringbuf_init(&pdm_mic->ring_buffer, pdm_mic->ring_buffer_storage, ring_buffer_len);
+
 
     pdm_mic->dma_channel = dma_claim_unused_channel(true);
     if (pdm_mic->dma_channel < 0) {
@@ -127,12 +140,13 @@ pdm_mic_obj* pdm_microphone_init(pdm_microphone_config* config) {
     pdm_mic->filter_volume = pdm_mic->filter.MaxVolume;
 
     pdm_mic->raw_buffer_write_index = 0;
-    pdm_mic->raw_buffer_read_index = 0;
 
     return pdm_mic;
 }
 
 void pdm_microphone_deinit(pdm_mic_obj *pdm_mic) {
+    free(pdm_mic->ring_buffer_storage);
+
     for (int i = 0; i < PDM_RAW_BUFFER_COUNT; i++) {
         if (pdm_mic->raw_buffer[i]) {
             free(pdm_mic->raw_buffer[i]);
@@ -140,6 +154,8 @@ void pdm_microphone_deinit(pdm_mic_obj *pdm_mic) {
             pdm_mic->raw_buffer[i] = NULL;
         }
     }
+
+    free(pdm_mic->read_raw_buffer);
 
     if (pdm_mic->dma_channel > -1) {
         dma_channel_unclaim(pdm_mic->dma_channel);
@@ -185,7 +201,6 @@ int pdm_microphone_start(pdm_mic_obj *pdm_mic) {
     );
 
     pdm_mic->raw_buffer_write_index = 0;
-    pdm_mic->raw_buffer_read_index = 0;
 
     //-------- Strange workaround ------------
     dma_channel_transfer_to_buffer_now(
@@ -231,19 +246,30 @@ STATIC uint dma_map_irq_to_channel(uint irq_index) {
 STATIC void pdm_dma_handle_mic(pdm_mic_obj *pdm_mic)
 {
     // get the next capture index to send the dma to start
-    pdm_mic->raw_buffer_read_index = pdm_mic->raw_buffer_write_index;
-    pdm_mic->raw_buffer_write_index = (pdm_mic->raw_buffer_write_index + 1) % PDM_RAW_BUFFER_COUNT;
+    int raw_buffer_write_index_next = (pdm_mic->raw_buffer_write_index + 1) % PDM_RAW_BUFFER_COUNT;
     
     // give the channel a new buffer to write to and re-trigger it
     dma_channel_transfer_to_buffer_now(
         pdm_mic->dma_channel,
-        pdm_mic->raw_buffer[pdm_mic->raw_buffer_write_index],
+        pdm_mic->raw_buffer[raw_buffer_write_index_next],
         pdm_mic->raw_buffer_size
     );
-    // dma_channel_set_write_addr(
-    //     pdm_mic->dma_channel, 
-    //     pdm_mic->raw_buffer[pdm_mic->raw_buffer_write_index], 
-    //     false);
+
+
+    if (ringbuf_available_space(&pdm_mic->ring_buffer) >= pdm_mic->raw_buffer_size) {
+        // Push data to ring buffer:
+        RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(pdm_mic->raw_buffer[pdm_mic->raw_buffer_write_index]);
+        uint32_t num_of_items = (pdm_mic->raw_buffer_size / RING_BUF_ITEM_SIZE_IN_BYTES);
+
+        for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
+            if (ringbuf_push(&pdm_mic->ring_buffer, data[a_index]) == false) {
+                break;
+            }
+        }
+    }
+
+
+    pdm_mic->raw_buffer_write_index = raw_buffer_write_index_next;
 
     if (pdm_mic->samples_ready_handler) {
         pdm_mic->samples_ready_handler(pdm_mic->pdm_id);
@@ -301,15 +327,25 @@ int pdm_microphone_read(pdm_mic_obj *pdm_mic, int16_t* buffer, size_t samples) {
         samples = pdm_mic->config->sample_buffer_size;
     }
 
-    if (pdm_mic->raw_buffer_write_index == pdm_mic->raw_buffer_read_index) {
+    memset(pdm_mic->read_raw_buffer, 0x0, pdm_mic->raw_buffer_size);
+
+    uint32_t available_data_bytes = ringbuf_available_data(&pdm_mic->ring_buffer);
+    if(available_data_bytes < pdm_mic->raw_buffer_size)
         return 0;
+
+    // Read data from ring buffer
+    RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(pdm_mic->read_raw_buffer);
+    uint32_t num_bytes_needed_from_ringbuf = pdm_mic->raw_buffer_size;
+    uint32_t num_of_items = (num_bytes_needed_from_ringbuf / RING_BUF_ITEM_SIZE_IN_BYTES);
+
+    for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
+        if(ringbuf_pop(&pdm_mic->ring_buffer, &(data[a_index])) == false) {
+            break;
+        }
     }
 
-    uint8_t* in = pdm_mic->raw_buffer[pdm_mic->raw_buffer_read_index];
+    uint8_t* in = pdm_mic->read_raw_buffer;
     int16_t* out = buffer;
-
-    // get the current buffer index
-    pdm_mic->raw_buffer_read_index = (pdm_mic->raw_buffer_read_index + 1) % PDM_RAW_BUFFER_COUNT;
 
     for (int i = 0; i < samples; i += filter_stride) {
 #if PDM_DECIMATION == 64
