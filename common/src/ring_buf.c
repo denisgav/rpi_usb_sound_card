@@ -51,21 +51,25 @@ bool ringbuf_is_empty(ring_buf_t *rbuf) {
 }
 
 bool ringbuf_is_full(ring_buf_t *rbuf) {
-    return ((rbuf->tail + 1) % rbuf->size) == rbuf->head;
+    uint32_t next_tail = (rbuf->tail + 1);
+    if(next_tail >= rbuf->size){
+        next_tail -= rbuf->size;
+    }
+    return next_tail == rbuf->head;
 }
 
 uint32_t ringbuf_available_data(ring_buf_t *rbuf) {
-    uint32_t size_tmp = rbuf->size + rbuf->tail - rbuf->head;
-    if(size_tmp > rbuf->size){
-        size_tmp -= rbuf->size;
+    if(rbuf->tail >= rbuf->head){
+        return (rbuf->tail - rbuf->head) * RING_BUF_ITEM_SIZE_IN_BYTES;
+    } else {
+        return (rbuf->size + rbuf->tail - rbuf->head) * RING_BUF_ITEM_SIZE_IN_BYTES;
     }
-    return size_tmp * RING_BUF_ITEM_SIZE_IN_BYTES;
 }
 
 uint32_t ringbuf_available_space(ring_buf_t *rbuf) {
-    uint32_t size_tmp = rbuf->size + rbuf->tail - rbuf->head;
-    if(size_tmp > rbuf->size){
-        size_tmp -= rbuf->size;
+    if(rbuf->tail >= rbuf->head){
+        return (rbuf->size - (rbuf->tail - rbuf->head)) * RING_BUF_ITEM_SIZE_IN_BYTES;
+    } else {
+        return (rbuf->size - (rbuf->size + rbuf->tail - rbuf->head)) * RING_BUF_ITEM_SIZE_IN_BYTES;
     }
-    return (rbuf->size - size_tmp - 1) * RING_BUF_ITEM_SIZE_IN_BYTES;
 }

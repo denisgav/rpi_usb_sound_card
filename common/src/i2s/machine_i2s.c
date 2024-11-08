@@ -113,10 +113,8 @@ STATIC uint32_t feed_dma(machine_i2s_obj_t *self, uint8_t *dma_buffer_p) {
     {
         available_data_bytes = self->sizeof_half_dma_buffer_in_bytes;
     }
-    uint32_t transfer_size_in_bytes = dma_get_bits(self->mode, self->bits) / 8;
-    uint32_t available_data_transfers = (available_data_bytes==0) ? 0 : (available_data_bytes/transfer_size_in_bytes);
-
-    RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(dma_buffer_p);
+    //uint32_t transfer_size_in_bytes = dma_get_bits(self->mode, self->bits) / 8;
+    //uint32_t available_data_transfers = (available_data_bytes==0) ? 0 : (available_data_bytes/transfer_size_in_bytes);
 
     //if (available_data >= self->sizeof_half_dma_buffer_in_bytes) {
     if (available_data_bytes >= self->sizeof_half_dma_buffer_in_bytes) {
@@ -124,19 +122,23 @@ STATIC uint32_t feed_dma(machine_i2s_obj_t *self, uint8_t *dma_buffer_p) {
         // STM32 HAL API has a stereo I2S implementation, but not mono
         // mono format is implemented by duplicating each sample into both L and R channels.
 
+        RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(dma_buffer_p);
+
         uint32_t num_of_items = (available_data_bytes/RING_BUF_ITEM_SIZE_IN_BYTES);
 
         for (uint32_t i = 0; i < num_of_items; i++) {
-            ringbuf_pop(&self->ring_buffer, &data[i]);
+            if(ringbuf_pop(&self->ring_buffer, &data[i]) == false){
+                return i*RING_BUF_ITEM_SIZE_IN_BYTES;
+            }
         }
 
     } else {
         // underflow.  clear buffer to transmit "silence" on the I2S bus
-        available_data_bytes = self->sizeof_half_dma_buffer_in_bytes;
-        available_data_transfers = available_data_bytes/transfer_size_in_bytes;
+        //available_data_bytes = self->sizeof_half_dma_buffer_in_bytes;
+        //available_data_transfers = available_data_bytes/transfer_size_in_bytes;
         memset(dma_buffer_p, 0, self->sizeof_half_dma_buffer_in_bytes);
     }
-    return available_data_transfers;
+    return self->sizeof_half_dma_buffer_in_bytes;
 }
 
 STATIC void irq_configure(machine_i2s_obj_t *self) {
@@ -452,7 +454,8 @@ STATIC int machine_i2s_init_helper(machine_i2s_obj_t *self,
 
     memset(self->dma_buffer, 0, ring_buffer_len);
 
-    self->sizeof_half_dma_buffer_in_bytes = ((self->rate+999)/1000) * ((i2s_bits == 32) ? 8 : 4);
+    //self->sizeof_half_dma_buffer_in_bytes = ((self->rate+999)/1000) * ((i2s_bits == 32) ? 8 : 4);
+    self->sizeof_half_dma_buffer_in_bytes = (self->rate/1000) * ((i2s_bits == 32) ? 8 : 4) / 2;
 
     irq_configure(self);
     int err = pio_configure(self);
