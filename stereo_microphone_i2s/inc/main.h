@@ -17,4 +17,7 @@ typedef int16_t usb_audio_2b_sample;
 
 #define USB_MIC_SAMPLE_BUFFER_SIZE  (I2S_MIC_RATE_DEF/1000) // MAX sample rate divided by 1000. Size of 1 ms sample
 
+// Uncomment it to enable WS2812 indication
+//#define WS2812_EN
+
 #endif //MAIN__H

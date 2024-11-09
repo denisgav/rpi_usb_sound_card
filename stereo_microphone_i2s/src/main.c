@@ -36,7 +36,9 @@
 
 #include "ssd1306/ssd1306.h"
 
+#ifdef WS2812_EN
 #include "ws2812/ws2812.h"
+#endif //WS2812_EN
 
 
 // Pointer to I2S handler
@@ -105,7 +107,9 @@ int main(void)
 
   setup_led_and_button();
   setup_ssd1306();
+  #ifdef WS2812_EN
   ws2812_init();
+  #endif //WS2812_EN
 
   usb_microphone_set_mute_set_handler(usb_microphone_mute_handler);
   usb_microphone_set_volume_set_handler(usb_microphone_volume_handler);
@@ -139,7 +143,9 @@ int main(void)
 
     status_update_task();
 
-    //ws2812_task(microphone_settings.blink_interval_ms);
+    #ifdef WS2812_EN
+    ws2812_task(microphone_settings.blink_interval_ms);
+    #endif //WS2812_EN
   }
 }
 
@@ -460,33 +466,36 @@ void display_ssd1306_info(void) {
     char vol_l_str[20] = "Vol L:";
     char vol_r_str[20] = "Vol R:";
 
+    char mute_m_str[20] = "Mute M:";
+    char mute_l_str[20] = "Mute L:";
+    char mute_r_str[20] = "Mute R:";
+
     memset(fmt_tmp_str, 0x0, sizeof(fmt_tmp_str));
     itoa((microphone_settings.volume[0]),
         fmt_tmp_str, 10);
     strcat(vol_m_str, fmt_tmp_str);
-
-    strcat(vol_m_str, " Mute: ");
-    strcat(vol_m_str, (microphone_settings.mute[0] ? "T" : "F"));
 
     memset(fmt_tmp_str, 0x0, sizeof(fmt_tmp_str));
     itoa((microphone_settings.volume[1]),
         fmt_tmp_str, 10);
     strcat(vol_l_str, fmt_tmp_str);
 
-    strcat(vol_l_str, " Mute: ");
-    strcat(vol_l_str, (microphone_settings.mute[1] ? "T" : "F"));
-
     memset(fmt_tmp_str, 0x0, sizeof(fmt_tmp_str));
     itoa((microphone_settings.volume[2]),
         fmt_tmp_str, 10);
     strcat(vol_r_str, fmt_tmp_str);
 
-    strcat(vol_r_str, " Mute: ");
-    strcat(vol_r_str, (microphone_settings.mute[2] ? "T" : "F"));
-
     ssd1306_draw_string(&disp, 4, 24, 1, vol_m_str);
     ssd1306_draw_string(&disp, 4, 32, 1, vol_l_str);
     ssd1306_draw_string(&disp, 4, 40, 1, vol_r_str);
+
+    strcat(mute_m_str, (microphone_settings.mute[0] ? "T" : "F"));
+    strcat(mute_l_str, (microphone_settings.mute[1] ? "T" : "F"));
+    strcat(mute_r_str, (microphone_settings.mute[2] ? "T" : "F"));
+
+    ssd1306_draw_string(&disp, 68, 24, 1, mute_m_str);
+    ssd1306_draw_string(&disp, 68, 32, 1, mute_l_str);
+    ssd1306_draw_string(&disp, 68, 40, 1, mute_r_str);
   }
   ssd1306_show(&disp);
 }

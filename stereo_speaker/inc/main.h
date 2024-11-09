@@ -9,6 +9,9 @@
 
 #define SAMPLE_BUFFER_SIZE  (96000/1000) // MAX sample rate divided by 1000. Size of 1 ms sample
 
+// Uncomment it to enable WS2812 indication
+//#define WS2812_EN
+
 //-------------------------
 
 #endif //MAIN__H

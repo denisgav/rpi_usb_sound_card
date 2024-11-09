@@ -45,7 +45,9 @@
 #include "pdm_board_defines.h"
 #include "microphone_settings.h"
 
+#ifdef WS2812_EN
 #include "ws2812/ws2812.h"
+#endif //WS2812_EN
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
@@ -153,7 +155,9 @@ int main(void)
   microphone_settings.user_mute = false;
 
   setup_led_and_button();
+  #ifdef WS2812_EN
   ws2812_init();
+  #endif //WS2812_EN
 
   usb_microphone_set_mute_set_handler(usb_microphone_mute_handler);
   usb_microphone_set_volume_set_handler(usb_microphone_volume_handler);
@@ -188,7 +192,9 @@ int main(void)
 
     status_update_task();
 
+    #ifdef WS2812_EN
     ws2812_task(microphone_settings.blink_interval_ms);
+    #endif //WS2812_EN
   }
 }
 
