@@ -57,17 +57,23 @@ STATIC uint32_t fill_appbuf_from_ringbuf(machine_i2s_obj_t *self, mp_buffer_info
     //   Thus, for every 1 byte copied to the app buffer, 4 bytes are read from the ring buffer.
     //   If a 8kB app buffer is supplied, 32kB of audio samples is read from the ring buffer.
 
-    RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(appbuf->buf);
-    uint32_t num_bytes_needed_from_ringbuf = appbuf->len;
-    uint32_t num_of_items = (num_bytes_needed_from_ringbuf / RING_BUF_ITEM_SIZE_IN_BYTES);
+    uint32_t available_data_bytes = ringbuf_available_data(&self->ring_buffer);
 
-    for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
-        if(ringbuf_pop(&self->ring_buffer, &(data[a_index])) == false) {
-            return a_index*RING_BUF_ITEM_SIZE_IN_BYTES;
+    if(available_data_bytes >= appbuf->len){
+        RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(appbuf->buf);
+        uint32_t num_bytes_needed_from_ringbuf = appbuf->len;
+        uint32_t num_of_items = (num_bytes_needed_from_ringbuf / RING_BUF_ITEM_SIZE_IN_BYTES);
+
+        for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
+            if(ringbuf_pop(&self->ring_buffer, &(data[a_index])) == false) {
+                return a_index*RING_BUF_ITEM_SIZE_IN_BYTES;
+            }
         }
-    }
 
-    return num_bytes_needed_from_ringbuf;
+        return num_bytes_needed_from_ringbuf;
+    } else {
+        return 0;
+    }
 }
 
 STATIC uint32_t copy_appbuf_to_ringbuf(machine_i2s_obj_t *self, mp_buffer_info_t *appbuf) {
@@ -76,16 +82,22 @@ STATIC uint32_t copy_appbuf_to_ringbuf(machine_i2s_obj_t *self, mp_buffer_info_t
     // loop, reading samples until the app buffer is emptied
     // for uasyncio mode, the loop will make an early exit if the ring buffer becomes full
 
-    RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(appbuf->buf);
-    uint32_t num_of_items = (appbuf->len / RING_BUF_ITEM_SIZE_IN_BYTES);
+    uint32_t available_space = ringbuf_available_space(&self->ring_buffer);
 
-    for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
-        if (ringbuf_push(&self->ring_buffer, data[a_index]) == false) {
-            return a_index*RING_BUF_ITEM_SIZE_IN_BYTES;
+    if(available_space >= appbuf->len){
+        RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(appbuf->buf);
+        uint32_t num_of_items = (appbuf->len / RING_BUF_ITEM_SIZE_IN_BYTES);
+
+        for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
+            if (ringbuf_push(&self->ring_buffer, data[a_index]) == false) {
+                return a_index*RING_BUF_ITEM_SIZE_IN_BYTES;
+            }
         }
-    }
 
-    return appbuf->len;
+        return appbuf->len;
+    } else {
+        return 0;
+    }
 }
 
 //-----------------------------------------------------------------------------------
@@ -93,15 +105,21 @@ STATIC uint32_t copy_appbuf_to_ringbuf(machine_i2s_obj_t *self, mp_buffer_info_t
 
 // function is used in IRQ context
 STATIC void empty_dma(machine_i2s_obj_t *self, uint8_t *dma_buffer_p) {
-    // when space exists, copy samples into ring buffer
-    if (ringbuf_available_space(&self->ring_buffer) >= self->sizeof_half_dma_buffer_in_bytes) {
-        RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(dma_buffer_p);
-        uint32_t num_of_items = (self->sizeof_half_dma_buffer_in_bytes/ RING_BUF_ITEM_SIZE_IN_BYTES);
-        for (uint32_t i = 0; i < num_of_items; i++) {
-            if(ringbuf_push(&self->ring_buffer, data[i]) == false){
-                return;
+    uint32_t available_space = ringbuf_available_space(&self->ring_buffer);
+
+    if(available_space >= self->sizeof_half_dma_buffer_in_bytes){
+        // when space exists, copy samples into ring buffer
+        if (ringbuf_available_space(&self->ring_buffer) >= self->sizeof_half_dma_buffer_in_bytes) {
+            RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(dma_buffer_p);
+            uint32_t num_of_items = (self->sizeof_half_dma_buffer_in_bytes/ RING_BUF_ITEM_SIZE_IN_BYTES);
+            for (uint32_t i = 0; i < num_of_items; i++) {
+                if(ringbuf_push(&self->ring_buffer, data[i]) == false){
+                    return;
+                }
             }
         }
+    } else {
+        return;
     }
 }
 
@@ -109,14 +127,7 @@ STATIC void empty_dma(machine_i2s_obj_t *self, uint8_t *dma_buffer_p) {
 STATIC uint32_t feed_dma(machine_i2s_obj_t *self, uint8_t *dma_buffer_p) {
     // when data exists, copy samples from ring buffer
     uint32_t available_data_bytes = ringbuf_available_data(&self->ring_buffer);
-    if(available_data_bytes > self->sizeof_half_dma_buffer_in_bytes)
-    {
-        available_data_bytes = self->sizeof_half_dma_buffer_in_bytes;
-    }
-    //uint32_t transfer_size_in_bytes = dma_get_bits(self->mode, self->bits) / 8;
-    //uint32_t available_data_transfers = (available_data_bytes==0) ? 0 : (available_data_bytes/transfer_size_in_bytes);
 
-    //if (available_data >= self->sizeof_half_dma_buffer_in_bytes) {
     if (available_data_bytes >= self->sizeof_half_dma_buffer_in_bytes) {
         // copy a block of samples from the ring buffer to the dma buffer.
         // STM32 HAL API has a stereo I2S implementation, but not mono
@@ -124,7 +135,7 @@ STATIC uint32_t feed_dma(machine_i2s_obj_t *self, uint8_t *dma_buffer_p) {
 
         RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(dma_buffer_p);
 
-        uint32_t num_of_items = (available_data_bytes/RING_BUF_ITEM_SIZE_IN_BYTES);
+        uint32_t num_of_items = (self->sizeof_half_dma_buffer_in_bytes/RING_BUF_ITEM_SIZE_IN_BYTES);
 
         for (uint32_t i = 0; i < num_of_items; i++) {
             if(ringbuf_pop(&self->ring_buffer, &data[i]) == false){
