@@ -238,7 +238,7 @@ void usb_speaker_tud_audio_rx_done_pre_read_handler(uint8_t rhport, uint16_t n_b
         machine_i2s_write_stream(speaker_i2s0, (void*)&spk_16b_i2s_buffer[0], usb_sample_count*4);
       }
     }
-    else if (speaker_settings.resolution == 24)
+    else 
     {
       int32_t *in = (int32_t *) spk_buf;
       usb_sample_count = usb_spk_data_size/8; // 8 bytes per sample 4b left, 4b right
