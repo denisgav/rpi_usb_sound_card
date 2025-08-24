@@ -36,11 +36,6 @@
 
 #include "ssd1306/ssd1306.h"
 
-#ifdef WS2812_EN
-#include "ws2812/ws2812.h"
-#endif //WS2812_EN
-
-
 // Pointer to I2S handler
 machine_i2s_obj_t* i2s0 = NULL;
 
@@ -107,10 +102,7 @@ int main(void)
 
   setup_led_and_button();
   setup_ssd1306();
-  #ifdef WS2812_EN
-  ws2812_init();
-  #endif //WS2812_EN
-
+  
   usb_microphone_set_mute_set_handler(usb_microphone_mute_handler);
   usb_microphone_set_volume_set_handler(usb_microphone_volume_handler);
   usb_microphone_set_current_sample_rate_set_handler(usb_microphone_current_sample_rate_handler);
@@ -142,10 +134,6 @@ int main(void)
     led_blinking_task();
 
     status_update_task();
-
-    #ifdef WS2812_EN
-    ws2812_task(microphone_settings.blink_interval_ms);
-    #endif //WS2812_EN
   }
 }
 

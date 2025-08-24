@@ -48,17 +48,9 @@ typedef enum {
 } i2s_mode_t;
 
 typedef enum {
-    BLOCKING,
-    NON_BLOCKING,
-    UASYNCIO
-} io_mode_t;
-
-typedef enum {
     GP_INPUT = 0,
     GP_OUTPUT = 1
 } gpio_dir_t;
-
-
 
 // Buffer protocol
 

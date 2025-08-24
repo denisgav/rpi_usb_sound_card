@@ -111,5 +111,6 @@ target_link_libraries(pico_ws2812 INTERFACE pico_stdlib hardware_dma hardware_pi
 ###################################################
 
 add_subdirectory("stereo_microphone_i2s")
-add_subdirectory("stereo_microphone_pdm")
 add_subdirectory("stereo_speaker")
+add_subdirectory("stereo_microphone_pdm")
+add_subdirectory("mono_microphone_pdm")

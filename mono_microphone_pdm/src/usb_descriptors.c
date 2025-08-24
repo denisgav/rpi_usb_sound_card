@@ -72,7 +72,7 @@ uint8_t const * tud_descriptor_device_cb(void)
   return (uint8_t const *) &desc_device;
 }
 
-#define CONFIG_TOTAL_LEN      (TUD_CONFIG_DESC_LEN + CFG_TUD_AUDIO * TUD_AUDIO_MIC_2_CH_1_FORMAT_DESC_LEN)
+#define CONFIG_TOTAL_LEN      (TUD_CONFIG_DESC_LEN + CFG_TUD_AUDIO * TUD_AUDIO_MIC_1_CH_1_FORMAT_DESC_LEN)
 
 #if CFG_TUSB_MCU == OPT_MCU_LPC175X_6X || CFG_TUSB_MCU == OPT_MCU_LPC177X_8X || CFG_TUSB_MCU == OPT_MCU_LPC40XX
   // LPC 17xx and 40xx endpoint type (bulk/interrupt/iso) are fixed by its number
@@ -93,7 +93,7 @@ uint8_t const desc_configuration[] =
   TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
 
   // Interface number, string index, EP Out & EP In address, EP size
-    TUD_AUDIO_MIC_2_CH_1_FORMAT_DESCRIPTOR(/*_stridx*/ 0, /*_epin*/ 0x80 | EPNUM_AUDIO)
+    TUD_AUDIO_MIC_1_CH_1_FORMAT_DESCRIPTOR(/*_stridx*/ 0, /*_epin*/ 0x80 | EPNUM_AUDIO)
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
