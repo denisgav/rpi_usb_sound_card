@@ -51,18 +51,8 @@
 #define SAMPLE_BUFFER_SIZE  (PDM_MIC_RATE_DEF/1000)
 
 
-// PDM configuration
-pdm_microphone_config config_l = {
-  .pdm_id = 0,
-  .dma_irq = DMA_IRQ_0,
-  .pio = pio0,
-  .gpio_data = PDM_MIC_0_DATA,
-  .gpio_clk = PDM_MIC_0_CLK,
-  .sample_rate = PDM_MIC_RATE_DEF,
-  .sample_buffer_size = SAMPLE_BUFFER_SIZE,
-};
-
-pdm_mic_obj* pdm_mic_l;
+// Pointer to PDM handler
+machine_pdm_obj_t* pdm0 = NULL;
 
 // variables
 int16_t sample_buffer_l[SAMPLE_BUFFER_SIZE];
@@ -70,7 +60,6 @@ int16_t sample_buffer_l[SAMPLE_BUFFER_SIZE];
 typedef int16_t usb_audio_sample;
 
 microphone_settings_t microphone_settings;
-
 
 // Audio test data, 4 channels muxed together, buffer[0] for CH0, buffer[1] for CH1, buffer[2] for CH2, buffer[3] for CH3
 usb_audio_sample usb_dummy_buffer[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX*CFG_TUD_AUDIO_FUNC_1_MAX_SAMPLE_RATE/1000];
@@ -94,18 +83,10 @@ void status_update_task(void);
 
 void refresh_pdm_connections()
 {
-  // // initialize and start the PDM microphone
-  // pdm_mic_l = pdm_microphone_init(&config_l);
-  // if (pdm_mic_l == NULL) {
-  //     printf("PDM microphone initialization failed!\n");
-  //     while (1) { tight_loop_contents(); }
-  // }
-  // pdm_microphone_set_samples_ready_handler(pdm_mic_l, on_pdm_samples_ready);
+  microphone_settings.samples_in_i2s_frame_min = (microphone_settings.sample_rate)    /1000;
+  microphone_settings.samples_in_i2s_frame_max = (microphone_settings.sample_rate+999)/1000;
 
-  // if(pdm_microphone_start(pdm_mic_l) != 0){
-  //   printf("PDM microphone start failed!\n");
-  //   while (1) { tight_loop_contents(); }
-  // }
+  pdm0 = create_machine_pdm(0, PDM_MIC_0_DATA, PDM_MIC_0_CLK);
 }
 
 //---------------------------------------
@@ -242,26 +223,28 @@ void on_pdm_samples_ready(uint8_t pdm_id){
 
 void on_usb_microphone_tx_pre_load(uint8_t rhport, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting)
 {
-//  tud_audio_write(usb_dummy_buffer, PDM_MIC_RATE_DEF/1000 * CFG_TUD_AUDIO_FUNC_1_FORMAT_1_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX);
+  tud_audio_write(usb_dummy_buffer, PDM_MIC_RATE_DEF/1000 * CFG_TUD_AUDIO_FUNC_1_FORMAT_1_N_BYTES_PER_SAMPLE_TX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_TX);
 }
 
 void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting)
 {
-  // uint32_t volume_db_left = microphone_settings.volume_mul_db[0];
+  uint32_t volume_db_left = microphone_settings.volume_mul_db[0];
 
-  // // reading left microphone
-  // int samples_read = pdm_microphone_read(pdm_mic_l, sample_buffer_l, SAMPLE_BUFFER_SIZE);
-  // if(samples_read == SAMPLE_BUFFER_SIZE){
-  //   for(uint32_t i = 0; i < SAMPLE_BUFFER_SIZE; i++){
-  //     usb_dummy_buffer[i] = pdm_to_usb_sample_convert(sample_buffer_l[i], volume_db_left);
-  //   }
-  // } else {
-  //   for(uint32_t i = 0; i < SAMPLE_BUFFER_SIZE; i++){
-  //     usb_dummy_buffer[i] = 0;
-  //   }
-  // }
-  
+  // reading left microphone
+  int samples_read = machine_pdm_read_stream(pdm0, sample_buffer_l, SAMPLE_BUFFER_SIZE);
+  if(samples_read == SAMPLE_BUFFER_SIZE){
+    for(uint32_t i = 0; i < SAMPLE_BUFFER_SIZE; i++){
+      usb_dummy_buffer[i] = pdm_to_usb_sample_convert(sample_buffer_l[i], volume_db_left);
+    }
+  } else {
+    for(uint32_t i = 0; i < SAMPLE_BUFFER_SIZE; i++){
+      usb_dummy_buffer[i] = 0;
+    }
+  }
 
+    static bool dma_stat_led = 0;
+    gpio_put(LED_RED_PIN, dma_stat_led);
+    dma_stat_led = 1-dma_stat_led;
 }
 
 usb_audio_sample pdm_to_usb_sample_convert(int16_t sample, uint32_t volume_db)
