@@ -64,14 +64,16 @@ typedef struct _machine_pdm_obj_t {
     uint8_t sm;
     const pio_program_t *pio_program;
     uint prog_offset;
+
     int dma_channel[PDM_NUM_DMA_CHANNELS];
-    uint8_t dma_buffer[PDM_NUM_DMA_CHANNELS];
-    ring_buf_t ring_buffer;
-    uint8_t *ring_buffer_storage;
+    uint8_t dma_buffer[PDM_SIZEOF_DMA_BUFFER_IN_BYTES];
     uint32_t sizeof_half_dma_buffer_in_bytes;
 
+    ring_buf_t ring_buffer;
+    uint8_t *ring_buffer_storage;
+
     uint32_t raw_buffer_size;
-    uint8_t read_raw_buffer[PDM_SIZEOF_DMA_READ_BUFFER_IN_BYTES];
+    uint8_t read_raw_buffer[PDM_SIZEOF_DMA_BUFFER_IN_BYTES];
 
     TPDMFilter_InitStruct filter;
     uint16_t filter_volume;

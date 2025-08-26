@@ -110,6 +110,7 @@ pico_generate_pio_header(pico_ws2812 ${CMAKE_CURRENT_LIST_DIR}/common/src/ws2812
 target_link_libraries(pico_ws2812 INTERFACE pico_stdlib hardware_dma hardware_pio)
 ###################################################
 
+add_subdirectory("hello_microphone_pdm")
 add_subdirectory("stereo_microphone_i2s")
 add_subdirectory("stereo_speaker")
 #add_subdirectory("stereo_microphone_pdm")

@@ -22,7 +22,7 @@
 #include "OpenPDMFilter.h"
 #include "pdm/pdm_microphone.h"
 
-#include "board_defines.h"
+//#include "board_defines.h"
 
 STATIC machine_pdm_obj_t* machine_pdm_obj[MAX_PDM_RP2] = {NULL, NULL};
 
@@ -39,6 +39,8 @@ STATIC void machine_pdm_deinit(machine_pdm_obj_t *self);
 STATIC void empty_dma(machine_pdm_obj_t *self, uint8_t *dma_buffer_p) {
     uint32_t available_space = ringbuf_available_space(&self->ring_buffer);
 
+    //printf("Ring buffer available_space: %d \n", available_space);
+
     if(available_space >= self->sizeof_half_dma_buffer_in_bytes){
         // when space exists, copy samples into ring buffer
         if (ringbuf_available_space(&self->ring_buffer) >= self->sizeof_half_dma_buffer_in_bytes) {
@@ -47,6 +49,8 @@ STATIC void empty_dma(machine_pdm_obj_t *self, uint8_t *dma_buffer_p) {
             for (uint32_t i = 0; i < num_of_items; i++) {
                 if(ringbuf_push(&self->ring_buffer, data[i]) == false){
                     return;
+                } else {
+                    //printf("Ring buffer push value [%d]: %d \n", i, data[i]);
                 }
             }
         }
@@ -128,25 +132,25 @@ STATIC int pio_configure(machine_pdm_obj_t *self) {
     self->prog_offset = pio_add_program(self->pio, self->pio_program);
     
 
-    pio_sm_config config = pio_get_default_sm_config();
+    // pio_sm_config config = pio_get_default_sm_config();
 
-    float clk_div = clock_get_hz(clk_sys) / (PDM_SIZEOF_DMA_BUFFER_IN_SAMPLES*1000 * PDM_DECIMATION * 4.0);
-    sm_config_set_clkdiv(&config, clk_div);
+    // float clk_div = clock_get_hz(clk_sys) / (PDM_SIZEOF_DMA_BUFFER_IN_SAMPLES*1000 * PDM_DECIMATION * 4.0);
+    // sm_config_set_clkdiv(&config, clk_div);
 
-    sm_config_set_in_pins(&config, self->gpio_data);
-    sm_config_set_sideset(&config, 1, false, false);
-    sm_config_set_sideset_pins(&config, self->gpio_clk);
-    sm_config_set_in_shift(&config, false, false, 8);
-    sm_config_set_fifo_join(&config, PIO_FIFO_JOIN_RX);  // double RX FIFO size
+    // sm_config_set_in_pins(&config, self->gpio_data);
+    // sm_config_set_sideset(&config, 1, false, false);
+    // sm_config_set_sideset_pins(&config, self->gpio_clk);
+    // sm_config_set_in_shift(&config, false, false, 8);
+    // sm_config_set_fifo_join(&config, PIO_FIFO_JOIN_RX);  // double RX FIFO size
 
-    //sm_config_set_wrap(&config, self->prog_offset, self->prog_offset + self->pio_program->length - 1);
-    pio_sm_set_config(self->pio, self->sm, &config);
+    // //sm_config_set_wrap(&config, self->prog_offset, self->prog_offset + self->pio_program->length - 1);
+    // pio_sm_set_config(self->pio, self->sm, &config);
 
-    pio_sm_init(self->pio, self->sm, self->prog_offset, &config);
+    // pio_sm_init(self->pio, self->sm, self->prog_offset, &config);
 
-    // float clk_div = clock_get_hz(clk_sys) / (16000 * PDM_DECIMATION * 4.0);
-    // pdm_microphone_data_init(self->pio, self->sm, self->prog_offset,
-    //     clk_div, self->gpio_data, self->gpio_clk);
+    float clk_div = clock_get_hz(clk_sys) / (16000 * PDM_DECIMATION * 4.0);
+    pdm_microphone_data_init(self->pio, self->sm, self->prog_offset,
+        clk_div, self->gpio_data, self->gpio_clk);
 
     // pio_sm_set_enabled(
     //     self->pio,
@@ -265,6 +269,8 @@ STATIC void dma_irq_handler(uint8_t irq_index) {
         // This should never happen
         return;
     }
+
+    //printf("IRQ handling call. irq_index = %d. \n", irq_index);
     
     empty_dma(self, dma_buffer);
     dma_irqn_acknowledge_channel(irq_index, dma_channel);
@@ -301,11 +307,10 @@ STATIC int machine_pdm_init_helper(machine_pdm_obj_t *self,
     self->gpio_data = gpio_data;
     self->gpio_clk = gpio_clk;
     self->rate = PDM_SIZEOF_DMA_BUFFER_IN_SAMPLES*1000;
-    self->raw_buffer_size = PDM_SIZEOF_DMA_READ_BUFFER_IN_BYTES;
 
     memset(self->dma_buffer, 0, PDM_SIZEOF_DMA_BUFFER_IN_BYTES);
 
-    //self->sizeof_half_dma_buffer_in_bytes = ((self->rate+999)/1000) * ((i2s_bits == 32) ? 8 : 4);
+    self->raw_buffer_size = PDM_SIZEOF_DMA_READ_BUFFER_IN_BYTES;
     self->sizeof_half_dma_buffer_in_bytes = self->raw_buffer_size / 2;
 
     self->filter.Fs = self->rate;
@@ -386,18 +391,27 @@ int machine_pdm_read_stream(machine_pdm_obj_t *self, int16_t* buffer, size_t sam
 
     memset(self->read_raw_buffer, 0x0, self->raw_buffer_size);
 
+    //printf("Ring buffer raw_buffer_size = %d. \n", self->raw_buffer_size);
+
     uint32_t available_data_bytes = ringbuf_available_data(&self->ring_buffer);
-    if(available_data_bytes < self->raw_buffer_size)
+    if(available_data_bytes < self->raw_buffer_size){
+        //printf("Ring buffer available data is too low %d \n", available_data_bytes);
         return 0;
+    }
 
     // Read data from ring buffer
     RING_BUF_ITEM_TYPE* data = (RING_BUF_ITEM_TYPE*)(self->read_raw_buffer);
     uint32_t num_bytes_needed_from_ringbuf = self->raw_buffer_size;
     uint32_t num_of_items = (num_bytes_needed_from_ringbuf / RING_BUF_ITEM_SIZE_IN_BYTES);
 
+    //printf("Ring buffer pop: raw_buffer_size = %d. num_bytes_needed_from_ringbuf =  %d.  num_of_items = %d \n", self->raw_buffer_size, num_bytes_needed_from_ringbuf, num_of_items);
+
     for(uint32_t a_index = 0; a_index < num_of_items; a_index++){
         if(ringbuf_pop(&self->ring_buffer, &(data[a_index])) == false) {
+            //printf("Can not pop from ring buffer \n");
             break;
+        } else {
+            //printf("Ring buffer [%d] pop value %d \n", a_index, data[a_index]);
         }
     }
 
