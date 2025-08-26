@@ -132,6 +132,7 @@ STATIC int pio_configure(machine_pdm_obj_t *self) {
     self->prog_offset = pio_add_program(self->pio, self->pio_program);
     
 
+    // function
     // pio_sm_config config = pio_get_default_sm_config();
 
     // float clk_div = clock_get_hz(clk_sys) / (PDM_SIZEOF_DMA_BUFFER_IN_SAMPLES*1000 * PDM_DECIMATION * 4.0);
@@ -148,15 +149,11 @@ STATIC int pio_configure(machine_pdm_obj_t *self) {
 
     // pio_sm_init(self->pio, self->sm, self->prog_offset, &config);
 
+
+    // PIO generated function
     float clk_div = clock_get_hz(clk_sys) / (16000 * PDM_DECIMATION * 4.0);
     pdm_microphone_data_init(self->pio, self->sm, self->prog_offset,
         clk_div, self->gpio_data, self->gpio_clk);
-
-    // pio_sm_set_enabled(
-    //     self->pio,
-    //     self->sm,
-    //     true
-    // );
 
     return 0;
 }
@@ -193,7 +190,7 @@ STATIC uint8_t *dma_get_buffer(machine_pdm_obj_t *self, uint channel) {
 
 STATIC int dma_configure(machine_pdm_obj_t *self) {
     uint8_t num_free_dma_channels = 0;
-    for (uint8_t ch = 0; ch < PDM_NUM_DMA_CHANNELS; ch++) {
+    for (uint8_t ch = 0; ch < NUM_DMA_CHANNELS; ch++) {
         if (!dma_channel_is_claimed(ch)) {
             num_free_dma_channels++;
         }

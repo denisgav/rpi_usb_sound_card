@@ -73,7 +73,6 @@ void usb_microphone_current_sample_rate_handler(uint32_t current_sample_rate_in)
 void usb_microphone_current_resolution_handler(uint8_t current_resolution_in);
 void usb_microphone_current_status_set_handler(uint32_t blink_interval_ms_in);
 
-void on_pdm_samples_ready(uint8_t pdm_id);
 void on_usb_microphone_tx_pre_load(uint8_t rhport, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting);
 void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting);
 //-------------------------
@@ -216,9 +215,6 @@ void usb_microphone_current_status_set_handler(uint32_t blink_interval_ms_in)
 {
   microphone_settings.blink_interval_ms = blink_interval_ms_in;
   microphone_settings.status_updated = true;
-}
-
-void on_pdm_samples_ready(uint8_t pdm_id){
 }
 
 void on_usb_microphone_tx_pre_load(uint8_t rhport, uint8_t itf, uint8_t ep_in, uint8_t cur_alt_setting)
