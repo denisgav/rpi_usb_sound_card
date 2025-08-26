@@ -237,10 +237,6 @@ void on_usb_microphone_tx_post_load(uint8_t rhport, uint16_t n_bytes_copied, uin
       usb_dummy_buffer[i] = 0;
     }
   }
-
-    static bool dma_stat_led = 0;
-    gpio_put(LED_RED_PIN, dma_stat_led);
-    dma_stat_led = 1-dma_stat_led;
 }
 
 usb_audio_sample pdm_to_usb_sample_convert(int16_t sample, uint32_t volume_db)
